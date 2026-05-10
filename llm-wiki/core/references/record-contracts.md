@@ -41,6 +41,8 @@ published_date:
 content_fingerprint:
 ```
 
+The v1 field set is closed. Unknown source record fields are invalid. Human navigation fields such as `tags` belong in `wiki_pages/` frontmatter, not in canonical record YAML.
+
 Allowed `status` values:
 
 - `active`
@@ -90,6 +92,7 @@ Allowed `source_format` values:
 - `raw_path` is required when `source_storage` is `local` and must point under `raw/`.
 - `source_url` is required when `source_storage` is `external`.
 - `processed_date` is required once `page_path` points to an existing source summary.
+- When `page_path` points to an existing page, that path must be a file whose frontmatter has `page_type: source_summary`.
 - `duplicate_of` is required when `status` is `duplicate`.
 - `superseded_by` is required when `status` is `superseded`.
 - `content_fingerprint` may be blank; when present it must include an algorithm prefix such as `sha256:`.

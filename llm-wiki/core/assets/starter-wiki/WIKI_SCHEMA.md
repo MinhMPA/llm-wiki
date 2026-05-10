@@ -20,6 +20,8 @@ Allowed `page_type` values are `source_summary`, `entity`, `concept`, `synthesis
 
 Readable pages use minimal Obsidian-compatible frontmatter:
 
+Every markdown file under `wiki_pages/` must include it.
+
 ```yaml
 ---
 record_id: SRC-0001
@@ -32,6 +34,8 @@ tags:
 ```
 
 Allowed page frontmatter fields are only `record_id`, `page_type`, `title`, `aliases`, and `tags`.
+
+Required page frontmatter fields are `page_type`, `title`, `aliases`, and `tags`. `record_id` is required only when a page mirrors a structured record.
 
 Records are authoritative. Page properties are minimal mirrors for navigation and discovery, not complete copies of record data.
 
@@ -94,6 +98,8 @@ Required source record fields are `record_id`, `record_type`, `status`, `source_
 
 Optional source record fields are `duplicate_of`, `superseded_by`, `raw_path`, `source_url`, `page_path`, `source_format`, `processed_date`, `published_date`, and `content_fingerprint`.
 
+The source record field set is closed in v1. Unknown fields are invalid. Human navigation fields such as `tags` belong only in `wiki_pages/` frontmatter.
+
 `record_type` must be `source` for source records.
 
 Controlled `status` values are exactly `active`, `archived`, `superseded`, and `duplicate`.
@@ -106,6 +112,7 @@ Conditional source record rules:
 - `raw_path` is required when `source_storage` is `local` and must point under `raw/`.
 - `source_url` is required when `source_storage` is `external`.
 - `processed_date` is required once `page_path` points to an existing source summary.
+- when `page_path` points to an existing page, that path must be a file whose frontmatter has `page_type: source_summary`.
 - `duplicate_of` is required when `status` is `duplicate`.
 - `superseded_by` is required when `status` is `superseded`.
 - `content_fingerprint` may be blank; when present it must include an algorithm prefix such as `sha256:`.

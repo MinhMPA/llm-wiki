@@ -21,3 +21,10 @@ Script execution is useful but not required for the markdown workflow to remain 
 - Read `references/page-contracts.md` for wiki pages, Obsidian frontmatter, and citations.
 - Read `references/validation.md` before changing validation behavior.
 - Read `references/advanced-workflows.md` only when the host can use subagents or background workers.
+
+## Scripts
+
+- `scripts/init_llm_wiki.py TARGET [--force]` initializes or refreshes a starter wiki without deleting unrelated user files.
+- `scripts/validate_wiki.py WIKI_ROOT` validates concrete structure, source records, page frontmatter, links, and source-record citations.
+
+Both scripts use only the Python standard library.
