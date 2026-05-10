@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -118,6 +119,40 @@ class TestInitLlmWiki(unittest.TestCase):
             self.assertIn(str(target), result.stderr)
             self.assertTrue(target.is_file())
             self.assertEqual(target.read_text(encoding="utf-8"), "not a directory\n")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlink support required")
+    def test_force_rejects_symlinked_starter_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            target.mkdir()
+            outside = Path(temp_dir) / "outside-schema.md"
+            outside.write_text("outside schema\n", encoding="utf-8")
+            schema = target / "WIKI_SCHEMA.md"
+            os.symlink(outside, schema)
+
+            result = run_init("--force", target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("symlink", result.stderr)
+            self.assertTrue(schema.is_symlink())
+            self.assertEqual(outside.read_text(encoding="utf-8"), "outside schema\n")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlink support required")
+    def test_rejects_symlinked_starter_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            target.mkdir()
+            outside_raw = Path(temp_dir) / "outside-raw"
+            outside_raw.mkdir()
+            raw = target / "raw"
+            os.symlink(outside_raw, raw)
+
+            result = run_init(target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("symlink", result.stderr)
+            self.assertTrue(raw.is_symlink())
+            self.assertFalse((outside_raw / ".gitkeep").exists())
 
     def test_missing_bundled_starter_wiki_returns_error(self):
         with tempfile.TemporaryDirectory() as temp_dir:

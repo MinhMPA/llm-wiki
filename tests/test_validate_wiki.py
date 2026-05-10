@@ -118,6 +118,31 @@ class TestValidateWiki(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("record_id is required", result.stderr)
 
+    def test_source_record_unknown_field_fails(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://example.com/source
+                source_type: article
+                title: Source With Tags
+                authors: []
+                added_date: 2026-05-11
+                tags: []
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("unsupported source record field: tags", result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:
@@ -157,6 +182,82 @@ Summary.
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("mirrored title", result.stderr)
+
+    def test_wiki_page_without_frontmatter_fails(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            page = wiki / "wiki_pages" / "concepts" / "missing-frontmatter.md"
+            page.write_text("# Missing Frontmatter\n\nBody.\n", encoding="utf-8")
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("frontmatter is required", result.stderr)
+
+    def test_source_record_page_path_must_point_to_source_summary_file(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://example.com/source
+                page_path: wiki_pages/sources
+                source_type: article
+                title: Directory Page Path
+                authors: []
+                added_date: 2026-05-11
+                processed_date: 2026-05-11
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("page_path must point to a file", result.stderr)
+
+    def test_source_record_page_path_must_be_source_summary(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://example.com/source
+                page_path: wiki_pages/concepts/not-summary.md
+                source_type: article
+                title: Wrong Page Type
+                authors: []
+                added_date: 2026-05-11
+                processed_date: 2026-05-11
+                """,
+            )
+            page = wiki / "wiki_pages" / "concepts" / "not-summary.md"
+            page.write_text(
+                """---
+page_type: concept
+title: Wrong Page Type
+aliases: []
+tags: []
+---
+
+Body.
+""",
+                encoding="utf-8",
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("page_path must point to a source_summary page", result.stderr)
 
     def test_source_record_citation_must_resolve(self):
         temp_dir, wiki = initialized_wiki()

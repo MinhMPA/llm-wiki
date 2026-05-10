@@ -27,6 +27,8 @@ def starter_dir() -> Path:
 
 
 def path_type(path: Path) -> str:
+    if path.is_symlink():
+        return "symlink"
     if path.is_dir():
         return "directory"
     if path.is_file():
@@ -35,12 +37,16 @@ def path_type(path: Path) -> str:
 
 
 def validate_target_types(source: Path, target: Path) -> None:
+    if target.is_symlink():
+        raise PathTypeConflict(target, "non-symlink directory")
     if target.exists() and not target.is_dir():
         raise PathTypeConflict(target, "directory")
 
     for source_path in sorted(source.rglob("*")):
         relative_path = source_path.relative_to(source)
         target_path = target / relative_path
+        if target_path.is_symlink():
+            raise PathTypeConflict(target_path, "non-symlink path")
         if source_path.is_dir() and target_path.exists() and not target_path.is_dir():
             raise PathTypeConflict(target_path, "directory")
         if source_path.is_file() and target_path.exists() and target_path.is_dir():

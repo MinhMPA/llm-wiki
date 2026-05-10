@@ -76,6 +76,26 @@ REQUIRED_SOURCE_FIELDS = [
     "added_date",
 ]
 
+ALLOWED_SOURCE_FIELDS = {
+    "record_id",
+    "record_type",
+    "status",
+    "duplicate_of",
+    "superseded_by",
+    "source_storage",
+    "raw_path",
+    "source_url",
+    "page_path",
+    "source_type",
+    "source_format",
+    "title",
+    "authors",
+    "added_date",
+    "processed_date",
+    "published_date",
+    "content_fingerprint",
+}
+
 SOURCE_STATUSES = {"active", "archived", "superseded", "duplicate"}
 SOURCE_STORAGES = {"local", "external"}
 SOURCE_TYPES = {
@@ -340,6 +360,10 @@ def validate_source_records(root: Path, records: dict[str, SourceRecord], errors
         data = record.data
         location = relative_path(root, record.path)
 
+        for field in sorted(data):
+            if field not in ALLOWED_SOURCE_FIELDS:
+                errors.append(f"{location}: unsupported source record field: {field}")
+
         for field in REQUIRED_SOURCE_FIELDS:
             if field not in data:
                 errors.append(f"{location}: {field} is required")
@@ -449,8 +473,19 @@ def validate_source_page_path(root: Path, data: dict[str, Any], location: str, e
         errors.append(f"{location}: page_path must point under wiki_pages/")
         return
 
-    if page_file.exists() and not has_nonempty_scalar(data, "processed_date"):
+    if not page_file.exists():
+        return
+    if not page_file.is_file():
+        errors.append(f"{location}: page_path must point to a file")
+        return
+    if not has_nonempty_scalar(data, "processed_date"):
         errors.append(f"{location}: processed_date is required when page_path points to an existing page")
+
+    page_text = read_text(page_file, errors, relative_path(root, page_file))
+    frontmatter, parse_errors = parse_frontmatter(page_text, relative_path(root, page_file))
+    errors.extend(parse_errors)
+    if frontmatter is None or scalar_value(frontmatter, "page_type") != "source_summary":
+        errors.append(f"{location}: page_path must point to a source_summary page")
 
 
 def validate_content_fingerprint(data: dict[str, Any], location: str, errors: list[str]) -> None:
@@ -493,7 +528,9 @@ def validate_pages(root: Path, records: dict[str, SourceRecord], errors: list[st
         frontmatter, parse_errors = parse_frontmatter(text, location)
         errors.extend(parse_errors)
 
-        if frontmatter is not None:
+        if frontmatter is None:
+            errors.append(f"{location}: frontmatter is required")
+        else:
             validate_page_frontmatter(frontmatter, records, location, errors)
 
         validate_obsidian_links(root, path, text, errors)
@@ -509,6 +546,10 @@ def validate_page_frontmatter(
     for field in sorted(frontmatter):
         if field not in PAGE_FRONTMATTER_FIELDS:
             errors.append(f"{location}: frontmatter field is not allowed: {field}")
+
+    for field in ["page_type", "title", "aliases", "tags"]:
+        if field not in frontmatter:
+            errors.append(f"{location}: {field} is required in frontmatter")
 
     page_type = scalar_value(frontmatter, "page_type")
     if page_type and page_type not in PAGE_TYPES:
