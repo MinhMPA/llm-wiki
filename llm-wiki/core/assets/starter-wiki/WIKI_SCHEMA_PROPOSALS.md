@@ -2,9 +2,21 @@
 
 ## Pending
 
-### P-0001: Example schema proposal title
+No pending schema proposals.
 
-Status: Pending
+## Approved
+
+No approved schema proposals.
+
+## Rejected
+
+No rejected schema proposals.
+
+## Proposal Template
+
+### P-NNNN: Example schema proposal title
+
+Status:
 
 Proposed by:
 
@@ -31,11 +43,3 @@ Explain why the change applies to a class of records or pages rather than one en
 #### Approval notes
 
 Record human approval, rejection, or requested revisions here.
-
-## Approved
-
-No approved schema proposals.
-
-## Rejected
-
-No rejected schema proposals.

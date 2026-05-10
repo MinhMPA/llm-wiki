@@ -98,7 +98,18 @@ Optional source record fields are `duplicate_of`, `superseded_by`, `raw_path`, `
 
 Controlled `status` values are exactly `active`, `archived`, `superseded`, and `duplicate`.
 
-Controlled `source_storage` values are `local` and `external`. `local` source storage requires `raw_path` under `raw/`. `external` source storage requires `source_url`.
+Controlled `source_storage` values are `local` and `external`.
+
+Conditional source record rules:
+
+- `record_type` must be `source`.
+- `raw_path` is required when `source_storage` is `local` and must point under `raw/`.
+- `source_url` is required when `source_storage` is `external`.
+- `processed_date` is required once `page_path` points to an existing source summary.
+- `duplicate_of` is required when `status` is `duplicate`.
+- `superseded_by` is required when `status` is `superseded`.
+- `content_fingerprint` may be blank; when present it must include an algorithm prefix such as `sha256:`.
+- `authors` is a list and may be empty.
 
 Controlled `source_type` values are `article`, `paper`, `book`, `chapter`, `transcript`, `note`, `image`, `dataset`, `video`, `audio`, `report`, `documentation`, and `other`.
 
@@ -114,4 +125,4 @@ Keep structured data separate from readable pages. Keep page frontmatter minimal
 
 ## Schema Evolution
 
-Top-level schema sections are fixed. Schema rules and subsections must stay generic. Generic schema changes are proposed in `WIKI_SCHEMA_PROPOSALS.md` using the machine-checkable proposal block format. Entry-specific exception rules require human review and approval.
+Top-level schema sections are fixed. Schema rules and subsections must stay generic. Generic schema changes are proposed in `WIKI_SCHEMA_PROPOSALS.md` using the machine-checkable proposal block format. Entry-specific exception rules do not belong in the schema. If an agent encounters an entry-specific exception request, it must route it to human review as a question or schema proposal instead of adding it directly to the schema.
