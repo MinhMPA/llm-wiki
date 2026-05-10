@@ -15,11 +15,41 @@ class InitSummary:
     overwritten: list[Path] = field(default_factory=list)
 
 
+class PathTypeConflict(Exception):
+    def __init__(self, path: Path, expected: str):
+        super().__init__(path, expected)
+        self.path = path
+        self.expected = expected
+
+
 def starter_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "assets" / "starter-wiki"
 
 
+def path_type(path: Path) -> str:
+    if path.is_dir():
+        return "directory"
+    if path.is_file():
+        return "file"
+    return "path"
+
+
+def validate_target_types(source: Path, target: Path) -> None:
+    if target.exists() and not target.is_dir():
+        raise PathTypeConflict(target, "directory")
+
+    for source_path in sorted(source.rglob("*")):
+        relative_path = source_path.relative_to(source)
+        target_path = target / relative_path
+        if source_path.is_dir() and target_path.exists() and not target_path.is_dir():
+            raise PathTypeConflict(target_path, "directory")
+        if source_path.is_file() and target_path.exists() and target_path.is_dir():
+            raise PathTypeConflict(target_path, "file")
+
+
 def copy_starter(source: Path, target: Path, force: bool) -> InitSummary:
+    validate_target_types(source, target)
+
     summary = InitSummary()
     target.mkdir(parents=True, exist_ok=True)
 
@@ -73,7 +103,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: bundled starter wiki is missing: {source}", file=sys.stderr)
         return 1
 
-    summary = copy_starter(source, args.target, args.force)
+    try:
+        summary = copy_starter(source, args.target, args.force)
+    except PathTypeConflict as error:
+        print(
+            f"error: path type conflict: expected {error.expected} at {error.path}, "
+            f"found {path_type(error.path)}",
+            file=sys.stderr,
+        )
+        return 1
+
     print_summary(summary)
     return 0
 

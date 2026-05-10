@@ -77,6 +77,48 @@ class TestInitLlmWiki(unittest.TestCase):
             self.assertEqual(personal.read_text(encoding="utf-8"), "private notes\n")
             self.assertIn("overwritten:", result.stdout)
 
+    def test_directory_conflict_with_existing_file_returns_error(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            target.mkdir()
+            raw = target / "raw"
+            raw.write_text("user raw marker\n", encoding="utf-8")
+
+            result = run_init(target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("path type conflict", result.stderr)
+            self.assertIn("raw", result.stderr)
+            self.assertTrue(raw.is_file())
+            self.assertEqual(raw.read_text(encoding="utf-8"), "user raw marker\n")
+
+    def test_force_file_conflict_with_existing_directory_returns_error(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            schema = target / "WIKI_SCHEMA.md"
+            schema.mkdir(parents=True)
+
+            result = run_init("--force", target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("path type conflict", result.stderr)
+            self.assertIn("WIKI_SCHEMA.md", result.stderr)
+            self.assertTrue(schema.is_dir())
+            self.assertFalse((schema / "WIKI_SCHEMA.md").exists())
+
+    def test_target_root_conflict_with_existing_file_returns_error(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            target.write_text("not a directory\n", encoding="utf-8")
+
+            result = run_init(target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("path type conflict", result.stderr)
+            self.assertIn(str(target), result.stderr)
+            self.assertTrue(target.is_file())
+            self.assertEqual(target.read_text(encoding="utf-8"), "not a directory\n")
+
     def test_missing_bundled_starter_wiki_returns_error(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             module = load_module()
