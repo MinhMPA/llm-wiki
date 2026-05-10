@@ -58,3 +58,46 @@ class TestStarterWiki(unittest.TestCase):
         self.assertIn("## Pending", text)
         self.assertIn("## Approved", text)
         self.assertIn("## Rejected", text)
+
+    def test_schema_defines_operational_source_contract(self):
+        schema = (STARTER / "WIKI_SCHEMA.md").read_text(encoding="utf-8")
+        required_terms = [
+            "record_id",
+            "record_type",
+            "source_storage",
+            "source_type",
+            "source_format",
+            "processed_date",
+            "content_fingerprint",
+            "wiki_records/sources/SRC-0001.yaml",
+            "wiki_pages/sources/",
+            "record_id",
+            "page_type",
+            "aliases",
+            "tags",
+            "[^SRC-0001]",
+        ]
+        for term in required_terms:
+            self.assertIn(term, schema)
+
+    def test_schema_proposals_define_machine_checkable_block(self):
+        text = (STARTER / "WIKI_SCHEMA_PROPOSALS.md").read_text(encoding="utf-8")
+        required_terms = [
+            "### P-0001:",
+            "Status: Pending",
+            "Change type:",
+            "Affected schema sections:",
+            "#### Proposed change",
+            "#### Why this is generic",
+            "#### Approval notes",
+        ]
+        for term in required_terms:
+            self.assertIn(term, text)
+
+    def test_forbidden_legacy_starter_paths_do_not_exist(self):
+        forbidden = [
+            "WIKI.md",
+            "wiki",
+        ]
+        for path in forbidden:
+            self.assertFalse((STARTER / path).exists(), path)
