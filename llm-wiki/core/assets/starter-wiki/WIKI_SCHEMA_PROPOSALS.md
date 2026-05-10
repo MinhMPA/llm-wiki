@@ -6,13 +6,23 @@
 
 Status: Pending
 
+Proposed by:
+
+Date:
+
 Change type:
 
 Affected schema sections:
 
+Human approval required:
+
 #### Proposed change
 
 Describe the exact generic schema change.
+
+#### Reason
+
+Explain the problem this proposal solves.
 
 #### Why this is generic
 

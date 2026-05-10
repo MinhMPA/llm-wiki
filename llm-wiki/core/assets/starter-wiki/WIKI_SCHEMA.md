@@ -11,8 +11,8 @@ This wiki preserves knowledge as portable files with explicit records, readable 
 - `AGENTS.md`: pointer file for ChatGPT Codex.
 - `CLAUDE.md`: pointer file for Claude Code.
 - `raw/`: local immutable source artifacts.
-- `wiki_records/`: structured authoritative records. Source records are stored as `wiki_records/sources/*.yaml`, for example `wiki_records/sources/SRC-0001.yaml`.
-- `wiki_pages/`: human-readable maintained wiki pages. Source summaries live in `wiki_pages/sources/`; entity, concept, and synthesis pages live under matching subdirectories.
+- `wiki_records/`: structured authoritative records. Source record files live under `wiki_records/sources/` as `.yaml` files. Example: `wiki_records/sources/SRC-0001.yaml`.
+- `wiki_pages/`: human-readable maintained wiki pages. Source-summary pages live under `wiki_pages/sources/` as `.md` files. Entity, concept, and synthesis pages live under matching subdirectories.
 
 ## Page Types
 
@@ -31,6 +31,8 @@ tags:
 ---
 ```
 
+Allowed page frontmatter fields are only `record_id`, `page_type`, `title`, `aliases`, and `tags`.
+
 Records are authoritative. Page properties are minimal mirrors for navigation and discovery, not complete copies of record data.
 
 ## Evidence And Citations
@@ -40,7 +42,7 @@ Durable claims cite source records with footnotes such as `[^SRC-0001]`. The foo
 ```markdown
 Claim text.[^SRC-0001]
 
-[^SRC-0001]: `SRC-0001` Example Source, source record.
+[^SRC-0001]: `SRC-0001` - [[sources/example]]
 ```
 
 ## Ingest Workflow
@@ -88,11 +90,15 @@ published_date:
 content_fingerprint:
 ```
 
-Required source record fields are `record_id`, `record_type`, `status`, `duplicate_of`, `superseded_by`, `source_storage`, `raw_path`, `source_url`, `page_path`, `source_type`, `source_format`, `title`, `authors`, `added_date`, `processed_date`, `published_date`, and `content_fingerprint`.
+Required source record fields are `record_id`, `record_type`, `status`, `source_storage`, `source_type`, `title`, `authors`, and `added_date`.
 
-Controlled `status` values are `active`, `archived`, `superseded`, and `duplicate`.
+Optional source record fields are `duplicate_of`, `superseded_by`, `raw_path`, `source_url`, `page_path`, `source_format`, `processed_date`, `published_date`, and `content_fingerprint`.
 
-Controlled `source_storage` values are `local` and `external`.
+`record_type` must be `source` for source records.
+
+Controlled `status` values are exactly `active`, `archived`, `superseded`, and `duplicate`.
+
+Controlled `source_storage` values are `local` and `external`. `local` source storage requires `raw_path` under `raw/`. `external` source storage requires `source_url`.
 
 Controlled `source_type` values are `article`, `paper`, `book`, `chapter`, `transcript`, `note`, `image`, `dataset`, `video`, `audio`, `report`, `documentation`, and `other`.
 
@@ -104,8 +110,8 @@ Schema changes, exception-like rules, semantic rewrites, duplicate merges, super
 
 ## User Preferences
 
-Keep structured data separate from readable pages. Keep page frontmatter minimal and Obsidian-compatible. Prefer source records for machine-readable facts and readable pages for human-oriented summaries, synthesis, indexes, logs, and open questions.
+Keep structured data separate from readable pages. Keep page frontmatter minimal and Obsidian-compatible. Prefer source records for machine-readable facts and readable pages for human-oriented summaries, synthesis, indexes, logs, and open questions. Tags are for `wiki_pages/` only and do not belong in canonical record YAML.
 
 ## Schema Evolution
 
-Top-level schema sections are fixed. Generic schema changes are proposed in `WIKI_SCHEMA_PROPOSALS.md` using the machine-checkable proposal block format. Entry-specific exceptions are not allowed in the schema without explicit human approval.
+Top-level schema sections are fixed. Schema rules and subsections must stay generic. Generic schema changes are proposed in `WIKI_SCHEMA_PROPOSALS.md` using the machine-checkable proposal block format. Entry-specific exception rules require human review and approval.
