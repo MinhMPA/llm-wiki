@@ -87,7 +87,7 @@ Allowed `source_format` values:
 ## Conditional Rules
 
 - `record_type` must be `source`.
-- `raw_path` is required when `source_storage` is `local`.
+- `raw_path` is required when `source_storage` is `local` and must point under `raw/`.
 - `source_url` is required when `source_storage` is `external`.
 - `processed_date` is required once `page_path` points to an existing source summary.
 - `duplicate_of` is required when `status` is `duplicate`.

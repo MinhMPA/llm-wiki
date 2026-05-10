@@ -39,3 +39,11 @@ class TestPortableLayout(unittest.TestCase):
         self.assertIn("record_id", records)
         self.assertIn("source_type", records)
         self.assertIn("Source Record Citations", pages)
+
+    def test_core_contract_quality_constraints(self):
+        records = (ROOT / "llm-wiki/core/references/record-contracts.md").read_text(encoding="utf-8")
+        advanced = (ROOT / "llm-wiki/core/references/advanced-workflows.md").read_text(encoding="utf-8")
+
+        self.assertIn("`raw_path` is required when `source_storage` is `local` and must point under `raw/`.", records)
+        self.assertNotIn("Future plugin packaging", advanced)
+        self.assertNotIn("plugin packaging", advanced)

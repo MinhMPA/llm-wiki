@@ -13,4 +13,4 @@ The background agent may prepare:
 - log entry
 - validation notes
 
-The background agent must not write durable wiki pages without human approval. In v1 this is an advanced reference workflow, not a required behavior. Future plugin packaging may expose it as a separate bundled skill.
+The background agent must not write durable wiki pages without human approval. In v1 this is an advanced reference workflow, not a required behavior.
