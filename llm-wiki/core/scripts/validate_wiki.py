@@ -322,11 +322,14 @@ def load_source_records(root: Path, errors: list[str]) -> dict[str, SourceRecord
         errors.extend(parse_errors)
 
         record_id = scalar_value(data, "record_id")
-        if record_id:
-            if record_id in records:
-                errors.append(f"{location}: duplicate record_id: {record_id}")
-            else:
-                records[record_id] = SourceRecord(path=path, data=data)
+        if not record_id:
+            errors.append(f"{location}: record_id is required")
+            continue
+
+        if record_id in records:
+            errors.append(f"{location}: duplicate record_id: {record_id}")
+        else:
+            records[record_id] = SourceRecord(path=path, data=data)
 
     return records
 

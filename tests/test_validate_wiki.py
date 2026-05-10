@@ -95,6 +95,29 @@ class TestValidateWiki(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("raw_path is required", result.stderr)
 
+    def test_source_record_without_record_id_fails(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://example.com/source
+                source_type: article
+                title: Missing Record ID
+                authors: []
+                added_date: 2026-05-11
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("record_id is required", result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:
