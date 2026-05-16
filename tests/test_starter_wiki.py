@@ -51,6 +51,7 @@ class TestStarterWiki(unittest.TestCase):
             "CLAUDE.md",
             "raw/.gitkeep",
             "wiki_records/sources/.gitkeep",
+            "wiki_records/relations/.gitkeep",
             "wiki_pages/index.md",
             "wiki_pages/log.md",
             "wiki_pages/questions.md",

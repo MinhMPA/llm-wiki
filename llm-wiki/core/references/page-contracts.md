@@ -58,3 +58,26 @@ The claim goes here.[^SRC-0001]
 ```
 
 Footnote IDs must match existing source record IDs. `index.md`, `log.md`, and `questions.md` are exempt unless they make substantive claims.
+
+## Managed Related Sources
+
+Source summary pages render active outgoing source relations in a managed section:
+
+```markdown
+## Related sources
+
+### Cites
+- [[sources/readable-source-title|Readable Source Title]] (`REL-0001`)
+```
+
+Rules:
+
+- Omit `## Related sources` when the source has no active outgoing relations.
+- Each managed bullet must correspond to exactly one active relation record.
+- Archived relations must not render.
+- Group headings use the fixed relation type labels in schema vocabulary order.
+- Bullets within a group are ordered by target source title, then relation `record_id`.
+- Link targets use the target source record `page_path` relative to `wiki_pages/`, without `.md`.
+- Link labels use the target source record `title`.
+- The managed section may contain only blank lines, relation type group headings, and managed bullets.
+- Freeform related-source prose and ordinary Obsidian links belong outside the managed section.

@@ -11,7 +11,7 @@ This wiki preserves knowledge as portable files with explicit records, readable 
 - `AGENTS.md`: pointer file for ChatGPT Codex.
 - `CLAUDE.md`: pointer file for Claude Code.
 - `raw/`: local immutable source artifacts.
-- `wiki_records/`: structured authoritative records. Source record files live under `wiki_records/sources/` as `.yaml` files. Example: `wiki_records/sources/SRC-0001.yaml`.
+- `wiki_records/`: structured authoritative records. Source record files live under `wiki_records/sources/` as `.yaml` files. Example: `wiki_records/sources/SRC-0001.yaml`. Source relation records live under `wiki_records/relations/` as `.yaml` files. Example: `wiki_records/relations/REL-0001.yaml`.
 - `wiki_pages/`: human-readable maintained wiki pages. Source-summary pages live under `wiki_pages/sources/` as `.md` files. Entity, concept, and synthesis pages live under matching subdirectories.
 
 ## Page Types
@@ -38,6 +38,17 @@ Allowed page frontmatter fields are only `record_id`, `page_type`, `title`, `ali
 Required page frontmatter fields are `page_type`, `title`, `aliases`, and `tags`. `record_id` is required only when a page mirrors a structured record.
 
 Records are authoritative. Page properties are minimal mirrors for navigation and discovery, not complete copies of record data.
+
+Source-summary pages may include a managed `Related sources` section when active outgoing source relations exist. Omit the section when there are no active outgoing relations.
+
+```markdown
+  ## Related sources
+
+  ### Cites
+  - [[sources/readable-source-title|Readable Source Title]] (`REL-0001`)
+```
+
+The managed section may contain only blank lines, relation type group headings, and managed relation bullets. Each managed bullet must correspond to one active relation record. Freeform related-source prose belongs outside the managed section.
 
 ## Evidence And Citations
 
@@ -67,6 +78,8 @@ Answer from wiki pages first, then consult records and sources when needed. Dura
 ## Lint Workflow
 
 Mechanical drift may be fixed automatically. Semantic, schema, or destructive changes require human approval.
+
+Rendering managed `Related sources` sections from approved relation records is a mechanical lint operation. Creating, removing, or changing the meaning of relation records is semantic work and requires human approval.
 
 ## Naming Conventions
 
@@ -122,9 +135,56 @@ Controlled `source_type` values are `article`, `paper`, `book`, `chapter`, `tran
 
 Controlled `source_format` values are `markdown`, `pdf`, `html`, `text`, `image`, `audio`, `video`, `csv`, `spreadsheet`, `json`, `yaml`, and `other`.
 
+A v1 relation record uses this YAML contract:
+
+```yaml
+record_id: REL-0001
+record_type: relation
+status: active
+source_record_id: SRC-0001
+target_record_id: SRC-0002
+relation_type: cites
+direction: source_to_target
+evidence: []
+created_date: 2026-05-16
+reviewed_date:
+confidence: high
+```
+
+Required relation record fields are `record_id`, `record_type`, `status`, `source_record_id`, `target_record_id`, `relation_type`, `direction`, `evidence`, `created_date`, and `confidence`.
+
+Optional relation record fields are `reviewed_date`.
+
+The relation record field set is closed in v1. Unknown fields are invalid. Use `record_id` for relation identity; do not use `relation_id`.
+
+`record_type` must be `relation` for relation records.
+
+Controlled relation `status` values are exactly `active` and `archived`.
+
+Controlled `relation_type` values are `cites`, `builds_on`, `extends`, `supports`, `contradicts`, `revises`, `duplicates`, `supersedes`, `uses_dataset`, `uses_method`, `same_topic`, `same_entity`, `background_for`, and `responds_to`.
+
+Controlled `direction` values are exactly `source_to_target`.
+
+Controlled `confidence` values are `low`, `medium`, `high`, and `unknown`.
+
+Conditional relation record rules:
+
+- `record_id` must look like `REL-0001` and match the filename stem.
+- `source_record_id` and `target_record_id` must point to existing source records.
+- `source_record_id` must not equal `target_record_id`.
+- `evidence` must be a list and may be empty.
+- `created_date` is required and must be `YYYY-MM-DD`.
+- `reviewed_date` may be blank; when present it must be `YYYY-MM-DD`.
+- only `active` relations render in source-summary pages.
+- archived relations remain records for auditability but must not render.
+- processed duplicate source records require an active `duplicates` relation to `duplicate_of`.
+- processed superseded source records require an active `supersedes` relation to `superseded_by`.
+
+Relation type group headings are rendered in the fixed relation vocabulary order. Bullets within each group are ordered by target source title, then relation `record_id`. Link targets use the target source `page_path` relative to `wiki_pages/` without `.md`; link labels use the target source record `title`.
+
 ## Review Policy
 
-Schema changes, exception-like rules, semantic rewrites, duplicate merges, superseding sources, archival, deletion, and new durable synthesis require human approval. Schema proposals must use the block format in `WIKI_SCHEMA_PROPOSALS.md` before approval.
+Schema changes, exception-like rules, semantic rewrites, duplicate merges, superseding sources, relation record creation or semantic relation changes, relation type vocabulary changes, archival, deletion, and new durable synthesis require human approval. Schema proposals must use the block format in `WIKI_SCHEMA_PROPOSALS.md` before approval.
 
 ## User Preferences
 

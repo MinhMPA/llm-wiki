@@ -67,6 +67,23 @@ Validator changes should follow this sequence:
 
 The validator should check concrete contracts. It should not judge broad principles, citation adequacy, or semantic truth.
 
+## Extend Source Relations
+
+Changing relation behavior requires schema, docs, validation, rendering, and tests to move together.
+
+Use the schema proposal queue before changing:
+
+- relation record fields;
+- allowed `relation_type` values;
+- managed `Related sources` heading or bullet format;
+- active/archived rendering behavior;
+- duplicate or superseded mirror rules;
+- renderer write behavior.
+
+After approval, update `WIKI_SCHEMA.md`, `llm-wiki/core/references/record-contracts.md`, `llm-wiki/core/references/page-contracts.md`, `validate_wiki.py`, `render_relations.py`, and the focused validator/renderer tests in the same implementation.
+
+Do not add entry-specific relation exceptions to the schema. If one source needs special treatment, route it to human review instead of adding a one-off rule.
+
 ## Extend The Initializer
 
 Initializer changes should preserve merge-safety:

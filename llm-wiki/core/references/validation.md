@@ -9,6 +9,11 @@ V1 validation checks:
 - `WIKI_SCHEMA_PROPOSALS.md` queue sections and proposal blocks
 - source record contracts
 - closed source record fields
+- relation record contracts
+- closed relation record fields
+- managed `Related sources` consistency between relation records and source summary pages
+- archived relation records are not rendered
+- duplicate and superseded lifecycle fields have graph-visible mirror relations after source pages are processed
 - required minimal page frontmatter
 - mirrored record/page fields
 - source record `page_path` targets when the target page exists

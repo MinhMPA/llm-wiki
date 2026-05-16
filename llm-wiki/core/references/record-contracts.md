@@ -97,3 +97,89 @@ Allowed `source_format` values:
 - `superseded_by` is required when `status` is `superseded`.
 - `content_fingerprint` may be blank; when present it must include an algorithm prefix such as `sha256:`.
 - `authors` is a list and may be empty.
+
+## Relation Records
+
+Relation records live in `wiki_records/relations/` as `.yaml` files named by stable sequential IDs:
+
+```text
+wiki_records/relations/REL-0001.yaml
+```
+
+Required fields:
+
+- `record_id`
+- `record_type`
+- `status`
+- `source_record_id`
+- `target_record_id`
+- `relation_type`
+- `direction`
+- `evidence`
+- `created_date`
+- `confidence`
+
+Full v1 field set:
+
+```yaml
+record_id: REL-0001
+record_type: relation
+status: active
+source_record_id: SRC-0001
+target_record_id: SRC-0002
+relation_type: cites
+direction: source_to_target
+evidence: []
+created_date: 2026-05-16
+reviewed_date:
+confidence: high
+```
+
+The v1 field set is closed. Unknown relation record fields are invalid. Relation records use the universal `record_id` field; do not use `relation_id`.
+
+Allowed `status` values:
+
+- `active`
+- `archived`
+
+Allowed `relation_type` values:
+
+- `cites`
+- `builds_on`
+- `extends`
+- `supports`
+- `contradicts`
+- `revises`
+- `duplicates`
+- `supersedes`
+- `uses_dataset`
+- `uses_method`
+- `same_topic`
+- `same_entity`
+- `background_for`
+- `responds_to`
+
+Allowed `direction` values:
+
+- `source_to_target`
+
+Allowed `confidence` values:
+
+- `low`
+- `medium`
+- `high`
+- `unknown`
+
+## Relation Conditional Rules
+
+- `record_id` must look like `REL-0001` and match the filename stem.
+- `record_type` must be `relation`.
+- `source_record_id` and `target_record_id` must reference existing source records.
+- `source_record_id` must not equal `target_record_id`.
+- `evidence` must be a list and may be empty.
+- `created_date` must be `YYYY-MM-DD`.
+- `reviewed_date` may be blank; when present it must be `YYYY-MM-DD`.
+- Only `active` relations render in managed `Related sources` sections.
+- `archived` relations remain records for auditability but must not render.
+- A processed source with `status: duplicate` and `duplicate_of` requires an active `duplicates` relation to the same target.
+- A processed source with `status: superseded` and `superseded_by` requires an active `supersedes` relation to the same target.

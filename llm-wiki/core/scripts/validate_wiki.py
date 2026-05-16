@@ -37,6 +37,7 @@ REQUIRED_FILES = [
 REQUIRED_DIRS = [
     "raw",
     "wiki_records/sources",
+    "wiki_records/relations",
     "wiki_pages/sources",
     "wiki_pages/entities",
     "wiki_pages/concepts",
@@ -128,6 +129,71 @@ SOURCE_FORMATS = {
     "other",
 }
 
+REQUIRED_RELATION_FIELDS = [
+    "record_id",
+    "record_type",
+    "status",
+    "source_record_id",
+    "target_record_id",
+    "relation_type",
+    "direction",
+    "evidence",
+    "created_date",
+    "confidence",
+]
+
+ALLOWED_RELATION_FIELDS = {
+    "record_id",
+    "record_type",
+    "status",
+    "source_record_id",
+    "target_record_id",
+    "relation_type",
+    "direction",
+    "evidence",
+    "created_date",
+    "reviewed_date",
+    "confidence",
+}
+
+RELATION_STATUSES = {"active", "archived"}
+RELATION_TYPES = [
+    "cites",
+    "builds_on",
+    "extends",
+    "supports",
+    "contradicts",
+    "revises",
+    "duplicates",
+    "supersedes",
+    "uses_dataset",
+    "uses_method",
+    "same_topic",
+    "same_entity",
+    "background_for",
+    "responds_to",
+]
+RELATION_TYPE_SET = set(RELATION_TYPES)
+RELATION_TYPE_LABELS = {
+    "cites": "Cites",
+    "builds_on": "Builds on",
+    "extends": "Extends",
+    "supports": "Supports",
+    "contradicts": "Contradicts",
+    "revises": "Revises",
+    "duplicates": "Duplicates",
+    "supersedes": "Supersedes",
+    "uses_dataset": "Uses dataset",
+    "uses_method": "Uses method",
+    "same_topic": "Same topic",
+    "same_entity": "Same entity",
+    "background_for": "Background for",
+    "responds_to": "Responds to",
+}
+RELATION_LABEL_TYPES = {label: relation_type for relation_type, label in RELATION_TYPE_LABELS.items()}
+RELATION_DIRECTIONS = {"source_to_target"}
+RELATION_CONFIDENCES = {"low", "medium", "high", "unknown"}
+
 PAGE_FRONTMATTER_FIELDS = {"record_id", "page_type", "title", "aliases", "tags"}
 PAGE_TYPES = {
     "source_summary",
@@ -140,16 +206,32 @@ PAGE_TYPES = {
 }
 
 RECORD_ID_RE = re.compile(r"^SRC-\d{4}$")
+RELATION_ID_RE = re.compile(r"^REL-\d{4}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 FINGERPRINT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+-]*:.+$")
 OBSIDIAN_LINK_RE = re.compile(r"\[\[([^\]\n]+)\]\]")
 SOURCE_CITATION_RE = re.compile(r"\[\^(SRC-\d{4})\]")
+MANAGED_RELATION_BULLET_RE = re.compile(r"^- \[\[([^\]|#\n]+)\|([^\]\n]+)\]\] \(`(REL-\d{4})`\)$")
 
 
 @dataclass(frozen=True)
 class SourceRecord:
     path: Path
     data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class RelationRecord:
+    path: Path
+    data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ManagedRelationLink:
+    relation_type: str
+    target: str
+    label: str
+    record_id: str
 
 
 def relative_path(root: Path, path: Path) -> str:
@@ -354,6 +436,31 @@ def load_source_records(root: Path, errors: list[str]) -> dict[str, SourceRecord
     return records
 
 
+def load_relation_records(root: Path, errors: list[str]) -> dict[str, RelationRecord]:
+    records: dict[str, RelationRecord] = {}
+    relations_dir = root / "wiki_records" / "relations"
+    if not relations_dir.is_dir():
+        return records
+
+    for path in sorted(relations_dir.glob("*.yaml"), key=lambda item: item.name):
+        location = relative_path(root, path)
+        text = read_text(path, errors, location)
+        data, parse_errors = parse_simple_yaml(text, location)
+        errors.extend(parse_errors)
+
+        record_id = scalar_value(data, "record_id")
+        if not record_id:
+            errors.append(f"{location}: record_id is required")
+            continue
+
+        if record_id in records:
+            errors.append(f"{location}: duplicate record_id: {record_id}")
+        else:
+            records[record_id] = RelationRecord(path=path, data=data)
+
+    return records
+
+
 def validate_source_records(root: Path, records: dict[str, SourceRecord], errors: list[str]) -> None:
     for record_id in sorted(records):
         record = records[record_id]
@@ -406,6 +513,88 @@ def validate_source_records(root: Path, records: dict[str, SourceRecord], errors
         validate_source_dates(data, location, errors)
         validate_source_page_path(root, data, location, errors)
         validate_content_fingerprint(data, location, errors)
+
+
+def validate_relation_records(
+    root: Path,
+    records: dict[str, RelationRecord],
+    source_records: dict[str, SourceRecord],
+    errors: list[str],
+) -> None:
+    for record_id in sorted(records):
+        record = records[record_id]
+        data = record.data
+        location = relative_path(root, record.path)
+
+        for field in sorted(data):
+            if field not in ALLOWED_RELATION_FIELDS:
+                errors.append(f"{location}: unsupported relation record field: {field}")
+
+        for field in REQUIRED_RELATION_FIELDS:
+            if field not in data:
+                errors.append(f"{location}: {field} is required")
+            elif field != "evidence" and isinstance(data[field], list):
+                errors.append(f"{location}: {field} must be a scalar")
+            elif field != "evidence" and str(data[field]) == "":
+                errors.append(f"{location}: {field} is required")
+
+        if "evidence" in data and not isinstance(data["evidence"], list):
+            errors.append(f"{location}: evidence must be a list")
+
+        if record_id and not RELATION_ID_RE.fullmatch(record_id):
+            errors.append(f"{location}: record_id must look like REL-0001")
+        if record_id and record_id != record.path.stem:
+            errors.append(f"{location}: record_id must match filename stem")
+
+        record_type = scalar_value(data, "record_type")
+        if record_type and record_type != "relation":
+            errors.append(f"{location}: record_type must be relation")
+
+        status = scalar_value(data, "status")
+        if status and status not in RELATION_STATUSES:
+            errors.append(f"{location}: status must be one of {', '.join(sorted(RELATION_STATUSES))}")
+
+        relation_type = scalar_value(data, "relation_type")
+        if relation_type and relation_type not in RELATION_TYPE_SET:
+            errors.append(f"{location}: relation_type must be one of {', '.join(RELATION_TYPES)}")
+
+        direction = scalar_value(data, "direction")
+        if direction and direction not in RELATION_DIRECTIONS:
+            errors.append(f"{location}: direction must be source_to_target")
+
+        confidence = scalar_value(data, "confidence")
+        if confidence and confidence not in RELATION_CONFIDENCES:
+            errors.append(f"{location}: confidence must be one of {', '.join(sorted(RELATION_CONFIDENCES))}")
+
+        source_record_id = scalar_value(data, "source_record_id")
+        target_record_id = scalar_value(data, "target_record_id")
+        if source_record_id and source_record_id not in source_records:
+            errors.append(f"{location}: source_record_id points to unknown source record: {source_record_id}")
+        if target_record_id and target_record_id not in source_records:
+            errors.append(f"{location}: target_record_id points to unknown source record: {target_record_id}")
+        if source_record_id and target_record_id and source_record_id == target_record_id:
+            errors.append(f"{location}: source_record_id must not equal target_record_id")
+        if status == "active":
+            source = source_records.get(source_record_id)
+            target = source_records.get(target_record_id)
+            if source is not None and source_page_file(root, source) is None:
+                errors.append(f"{location}: active relation source page is missing for {record_id}")
+            if target is not None and source_page_file(root, target) is None:
+                errors.append(f"{location}: active relation target page is missing for {record_id}")
+            if target is not None and source_page_file(root, target) is not None:
+                target_path = source_page_target(root, target)
+                target_title = scalar_value(target.data, "title")
+                if any(character in target_path for character in "[]|#\n"):
+                    errors.append(f"{location}: active relation target page path cannot render as a managed link: {target_path}")
+                if any(character in target_title for character in "]\n"):
+                    errors.append(f"{location}: active relation target title cannot render as a managed link label")
+
+        for field in ["created_date", "reviewed_date"]:
+            if field not in data:
+                continue
+            value = scalar_value(data, field)
+            if value and not is_valid_date(value):
+                errors.append(f"{location}: {field} must be YYYY-MM-DD")
 
 
 def validate_source_storage(root: Path, data: dict[str, Any], location: str, errors: list[str]) -> None:
@@ -486,6 +675,8 @@ def validate_source_page_path(root: Path, data: dict[str, Any], location: str, e
     errors.extend(parse_errors)
     if frontmatter is None or scalar_value(frontmatter, "page_type") != "source_summary":
         errors.append(f"{location}: page_path must point to a source_summary page")
+    elif scalar_value(frontmatter, "record_id") != scalar_value(data, "record_id"):
+        errors.append(f"{location}: page_path frontmatter record_id must match source record_id")
 
 
 def validate_content_fingerprint(data: dict[str, Any], location: str, errors: list[str]) -> None:
@@ -516,7 +707,238 @@ def parse_frontmatter(text: str, location: str) -> tuple[dict[str, Any] | None, 
     return data, errors
 
 
-def validate_pages(root: Path, records: dict[str, SourceRecord], errors: list[str]) -> None:
+def source_page_file(root: Path, record: SourceRecord) -> Path | None:
+    page_path = scalar_value(record.data, "page_path")
+    if not page_path:
+        return None
+    page_file = root / page_path
+    if page_path.startswith("wiki_pages/") and page_file.is_file() and path_is_under(page_file, root / "wiki_pages"):
+        return page_file
+    return None
+
+
+def source_page_target(root: Path, record: SourceRecord) -> str:
+    page_path = scalar_value(record.data, "page_path")
+    if page_path.startswith("wiki_pages/"):
+        target = page_path.removeprefix("wiki_pages/")
+        if target.endswith(".md"):
+            target = target[:-3]
+        return target
+    return ""
+
+
+def active_renderable_relations(
+    root: Path,
+    relations: dict[str, RelationRecord],
+    source_records: dict[str, SourceRecord],
+) -> list[RelationRecord]:
+    renderable: list[RelationRecord] = []
+    for relation in relations.values():
+        data = relation.data
+        if scalar_value(data, "status") != "active":
+            continue
+        source = source_records.get(scalar_value(data, "source_record_id"))
+        target = source_records.get(scalar_value(data, "target_record_id"))
+        if source is None or target is None:
+            continue
+        if source_page_file(root, source) is None or source_page_file(root, target) is None:
+            continue
+        renderable.append(relation)
+    return renderable
+
+
+def render_managed_section(root: Path, relations: list[RelationRecord], source_records: dict[str, SourceRecord]) -> list[str]:
+    if not relations:
+        return []
+
+    by_type: dict[str, list[RelationRecord]] = {relation_type: [] for relation_type in RELATION_TYPES}
+    for relation in relations:
+        relation_type = scalar_value(relation.data, "relation_type")
+        if relation_type in by_type:
+            by_type[relation_type].append(relation)
+
+    lines = ["## Related sources", ""]
+    first_group = True
+    for relation_type in RELATION_TYPES:
+        group = by_type[relation_type]
+        if not group:
+            continue
+        if not first_group:
+            lines.append("")
+        first_group = False
+        lines.append(f"### {RELATION_TYPE_LABELS[relation_type]}")
+
+        def sort_key(relation: RelationRecord) -> tuple[str, str]:
+            target = source_records[scalar_value(relation.data, "target_record_id")]
+            return (scalar_value(target.data, "title").lower(), scalar_value(relation.data, "record_id"))
+
+        for relation in sorted(group, key=sort_key):
+            target = source_records[scalar_value(relation.data, "target_record_id")]
+            target_path = source_page_target(root, target)
+            target_title = scalar_value(target.data, "title")
+            relation_id = scalar_value(relation.data, "record_id")
+            lines.append(f"- [[{target_path}|{target_title}]] (`{relation_id}`)")
+    return lines
+
+
+def managed_section_bounds(lines: list[str]) -> tuple[int, int] | None:
+    starts = [index for index, line in enumerate(lines) if line == "## Related sources"]
+    if not starts:
+        return None
+    start = starts[0]
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith("## "):
+            end = index
+            break
+    return start, end
+
+
+def parse_managed_relation_links(lines: list[str], location: str, errors: list[str]) -> list[ManagedRelationLink]:
+    starts = [index for index, line in enumerate(lines) if line == "## Related sources"]
+    if len(starts) > 1:
+        errors.append(f"{location}: multiple Related sources sections are not allowed")
+        return []
+    if not starts:
+        return []
+
+    bounds = managed_section_bounds(lines)
+    if bounds is None:
+        return []
+    start, end = bounds
+    current_relation_type = ""
+    links: list[ManagedRelationLink] = []
+
+    for line_number, line in enumerate(lines[start + 1 : end], start=start + 2):
+        if not line:
+            continue
+        if line.startswith("### "):
+            label = line[4:]
+            relation_type = RELATION_LABEL_TYPES.get(label)
+            if relation_type is None:
+                errors.append(f"{location}:{line_number}: unknown relation type group: {label}")
+                current_relation_type = ""
+            else:
+                current_relation_type = relation_type
+            continue
+        if line.startswith("- "):
+            if not current_relation_type:
+                errors.append(f"{location}:{line_number}: managed relation bullet must follow a relation type group")
+                continue
+            match = MANAGED_RELATION_BULLET_RE.fullmatch(line)
+            if match is None:
+                errors.append(f"{location}:{line_number}: managed relation bullet has invalid format")
+                continue
+            target, label, record_id = match.groups()
+            links.append(ManagedRelationLink(current_relation_type, target, label, record_id))
+            continue
+        errors.append(f"{location}:{line_number}: unmanaged content is not allowed in Related sources")
+    return links
+
+
+def validate_managed_relation_sections(
+    root: Path,
+    path: Path,
+    text: str,
+    frontmatter: dict[str, Any] | None,
+    source_records: dict[str, SourceRecord],
+    relation_records: dict[str, RelationRecord],
+    errors: list[str],
+) -> None:
+    location = relative_path(root, path)
+    lines = text.splitlines()
+    actual_links = parse_managed_relation_links(lines, location, errors)
+
+    if frontmatter is None or scalar_value(frontmatter, "page_type") != "source_summary":
+        if any(line == "## Related sources" for line in lines):
+            errors.append(f"{location}: Related sources section is only allowed on source_summary pages")
+        return
+
+    source_record_id = scalar_value(frontmatter, "record_id")
+    bounds = managed_section_bounds(lines)
+    if not source_record_id:
+        if bounds is not None or actual_links:
+            errors.append(f"{location}: Related sources section requires source_summary record_id")
+        return
+
+    desired_relations = [
+        relation
+        for relation in active_renderable_relations(root, relation_records, source_records)
+        if scalar_value(relation.data, "source_record_id") == source_record_id
+    ]
+    desired_lines = render_managed_section(root, desired_relations, source_records)
+
+    if not desired_lines:
+        if bounds is not None:
+            errors.append(f"{location}: Related sources section is stale; no active outgoing relations render here")
+        for link in actual_links:
+            relation = relation_records.get(link.record_id)
+            if relation is not None and scalar_value(relation.data, "status") == "archived":
+                errors.append(f"{location}: archived relation is rendered in Related sources: {link.record_id}")
+            else:
+                errors.append(f"{location}: managed relation link has no active relation record: {link.record_id}")
+        return
+
+    if bounds is None:
+        errors.append(f"{location}: missing Related sources section for active outgoing relations")
+        return
+
+    start, end = bounds
+    actual_section = lines[start:end]
+    while actual_section and actual_section[-1] == "":
+        actual_section.pop()
+    if actual_section != desired_lines:
+        errors.append(f"{location}: Related sources section does not match relation records")
+
+    expected_ids = {scalar_value(relation.data, "record_id") for relation in desired_relations}
+    actual_ids = {link.record_id for link in actual_links}
+    for record_id in sorted(actual_ids - expected_ids):
+        relation = relation_records.get(record_id)
+        if relation is not None and scalar_value(relation.data, "status") == "archived":
+            errors.append(f"{location}: archived relation is rendered in Related sources: {record_id}")
+        else:
+            errors.append(f"{location}: managed relation link has no active relation record: {record_id}")
+    for record_id in sorted(expected_ids - actual_ids):
+        errors.append(f"{location}: missing managed relation link for active relation: {record_id}")
+
+
+def validate_lifecycle_relation_mirrors(
+    root: Path,
+    source_records: dict[str, SourceRecord],
+    relation_records: dict[str, RelationRecord],
+    errors: list[str],
+) -> None:
+    active_edges = {
+        (
+            scalar_value(relation.data, "source_record_id"),
+            scalar_value(relation.data, "target_record_id"),
+            scalar_value(relation.data, "relation_type"),
+        )
+        for relation in relation_records.values()
+        if scalar_value(relation.data, "status") == "active"
+    }
+
+    for record_id, record in sorted(source_records.items()):
+        if source_page_file(root, record) is None:
+            continue
+        location = relative_path(root, record.path)
+        status = scalar_value(record.data, "status")
+        if status == "duplicate":
+            target_id = scalar_value(record.data, "duplicate_of")
+            if target_id and (record_id, target_id, "duplicates") not in active_edges:
+                errors.append(f"{location}: processed duplicate source requires an active duplicates relation to {target_id}")
+        if status == "superseded":
+            target_id = scalar_value(record.data, "superseded_by")
+            if target_id and (record_id, target_id, "supersedes") not in active_edges:
+                errors.append(f"{location}: processed superseded source requires an active supersedes relation to {target_id}")
+
+
+def validate_pages(
+    root: Path,
+    records: dict[str, SourceRecord],
+    relation_records: dict[str, RelationRecord],
+    errors: list[str],
+) -> None:
     pages_root = root / "wiki_pages"
     if not pages_root.is_dir():
         return
@@ -535,6 +957,7 @@ def validate_pages(root: Path, records: dict[str, SourceRecord], errors: list[st
 
         validate_obsidian_links(root, path, text, errors)
         validate_source_citations(root, path, text, records, errors)
+        validate_managed_relation_sections(root, path, text, frontmatter, records, relation_records, errors)
 
 
 def validate_page_frontmatter(
@@ -638,8 +1061,11 @@ def validate_wiki(root: Path) -> list[str]:
     validate_schema(root, errors)
     validate_proposals(root, errors)
     records = load_source_records(root, errors)
+    relation_records = load_relation_records(root, errors)
     validate_source_records(root, records, errors)
-    validate_pages(root, records, errors)
+    validate_relation_records(root, relation_records, records, errors)
+    validate_lifecycle_relation_mirrors(root, records, relation_records, errors)
+    validate_pages(root, records, relation_records, errors)
     return errors
 
 

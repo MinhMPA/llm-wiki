@@ -26,5 +26,6 @@ Script execution is useful but not required for the markdown workflow to remain 
 
 - `scripts/init_llm_wiki.py TARGET [--force]` initializes or refreshes a starter wiki without deleting unrelated user files.
 - `scripts/validate_wiki.py WIKI_ROOT` validates concrete structure, source records, page frontmatter, links, and source-record citations.
+- `scripts/render_relations.py WIKI_ROOT [--apply]` renders managed `Related sources` sections from active relation records. It is dry-run by default and writes only with `--apply`.
 
 Both scripts use only the Python standard library.

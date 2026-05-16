@@ -4,9 +4,10 @@ LLM Wiki is a portable, schema-driven skill for building a maintained markdown k
 
 Instead of treating sources as a pile of files to search every time, LLM Wiki turns them into:
 
-- structured source records in `wiki_records/`;
+- structured source records and source relation records in `wiki_records/`;
 - readable Obsidian-friendly pages in `wiki_pages/`;
 - source-record citations;
+- Obsidian-visible source-to-source links;
 - an index and log;
 - deterministic validation reports.
 
@@ -24,6 +25,13 @@ Validate it:
 
 ```bash
 python3 llm-wiki/core/scripts/validate_wiki.py path/to/wiki
+```
+
+Render source-to-source graph links after relation records change:
+
+```bash
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki --apply
 ```
 
 Ask your agent to read:
@@ -47,6 +55,7 @@ path/to/wiki/
   raw/
   wiki_records/
     sources/
+    relations/
   wiki_pages/
     index.md
     log.md
@@ -120,6 +129,34 @@ Durable claims cite source records.[^SRC-0001]
 
 Update `wiki_pages/index.md` and `wiki_pages/log.md`, then run the validator.
 
+## Link Sources For Obsidian Graphs
+
+Create a relation record when one source should point to another. For example, a safe-sleep guidance source can mark a hospital discharge checklist as background:
+
+```yaml
+record_id: REL-0001
+record_type: relation
+status: active
+source_record_id: SRC-0001
+target_record_id: SRC-0002
+relation_type: background_for
+direction: source_to_target
+evidence: []
+created_date: 2026-05-16
+reviewed_date:
+confidence: high
+```
+
+Then render managed graph links and validate:
+
+```bash
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki --apply
+python3 llm-wiki/core/scripts/validate_wiki.py path/to/wiki
+```
+
+The renderer is dry-run by default. With `--apply`, it rewrites only managed `## Related sources` sections in source summaries. Ordinary prose and freeform Obsidian links are left alone.
+
 ## Manage A Wiki
 
 Use these recurring operations:
@@ -128,9 +165,11 @@ Use these recurring operations:
 - `query`: answer from `wiki_pages/` first, then consult records and sources when needed.
 - `file`: save durable query results into `wiki_pages/synthesis/` only with human approval.
 - `lint`: fix mechanical drift, but ask before semantic, schema, duplicate, archival, deletion, or synthesis changes.
+- `render-relations`: mechanically update managed related-source links from active relation records.
 - `validate`: run `validate_wiki.py` after edits.
 
 The validator is structural. It checks file layout, schema headings, proposal blocks, source records, page frontmatter, mirrored titles, wiki links, and source-record citations. It does not judge whether every claim is sufficiently supported.
+It also checks relation records and managed related-source links when present.
 
 ## Customize The Schema
 
@@ -197,7 +236,7 @@ Useful low-level improvements:
 - add lint commands for mechanical fixes;
 - add optional MCP tooling only for workflows that benefit from a long-lived server.
 
-Do not move semantic decisions into automation. Duplicate merges, source supersession, schema changes, durable synthesis, and deletion require human approval.
+Do not move semantic decisions into automation. Duplicate merges, source supersession, relation creation or semantic relation changes, schema changes, durable synthesis, and deletion require human approval.
 
 ## Documentation
 

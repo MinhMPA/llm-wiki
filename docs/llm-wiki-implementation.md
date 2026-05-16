@@ -15,6 +15,7 @@ llm-wiki/
     references/
     scripts/
       init_llm_wiki.py
+      render_relations.py
       validate_wiki.py
 tests/
 ```
@@ -32,6 +33,7 @@ AGENTS.md
 CLAUDE.md
 raw/
 wiki_records/
+  relations/
   sources/
 wiki_pages/
   index.md
@@ -66,6 +68,24 @@ Behavior:
 - prints `created:`, `skipped:`, and `overwritten:` summaries.
 
 The initializer uses only the Python standard library.
+
+## Relation Renderer
+
+Command:
+
+```bash
+python3 llm-wiki/core/scripts/render_relations.py WIKI_ROOT [--apply]
+```
+
+Behavior:
+
+- dry-runs by default and exits nonzero when pages would change;
+- writes only with `--apply`;
+- rewrites only managed `## Related sources` sections;
+- removes stale managed sections when no active outgoing relations remain;
+- refuses malformed managed sections that contain unmanaged prose.
+
+The renderer uses only the Python standard library.
 
 ## Validator
 
@@ -127,6 +147,16 @@ Allowed fields are closed to the v1 source record field set:
 
 Unknown fields fail validation. This keeps canonical records machine-readable. Human navigation fields such as `tags` belong in page frontmatter, not in record YAML.
 
+## Relation Record Contract
+
+Relation records live in `wiki_records/relations/*.yaml`. The `record_id` must match the filename stem and look like `REL-0001`.
+
+Required fields are `record_id`, `record_type`, `status`, `source_record_id`, `target_record_id`, `relation_type`, `direction`, `evidence`, `created_date`, and `confidence`.
+
+Allowed fields are closed to `record_id`, `record_type`, `status`, `source_record_id`, `target_record_id`, `relation_type`, `direction`, `evidence`, `created_date`, `reviewed_date`, and `confidence`.
+
+Unknown fields fail validation. `notes` and `relation_id` are not valid relation record fields in v1.
+
 ## Page Contract
 
 Every markdown file under `wiki_pages/` must have frontmatter.
@@ -150,6 +180,8 @@ Required frontmatter fields:
 
 `aliases` and `tags` must be lists. If a page mirrors a record and has a title, that title must match the record title.
 
+Source summary pages may include a managed `## Related sources` section. The section is generated from active relation records and must match the exact relation type grouping, link target, link label, and relation ID expected by the validator.
+
 ## Citation Contract
 
 Durable source-record citations use footnotes:
@@ -162,6 +194,12 @@ Claim.[^SRC-0001]
 
 The cited source record must exist. The footnote body must start with the matching record ID in backticks.
 
+## Relation Validation
+
+The validator checks that relation records use the closed field set, valid controlled values, existing source endpoints, non-self edges, ISO dates, and list-shaped `evidence`.
+
+For processed source summaries, it also checks that active outgoing renderable relations appear in `## Related sources`, managed related-source links map to active relation records, archived relations are not rendered, and duplicate or superseded lifecycle fields have matching active `duplicates` or `supersedes` relation records.
+
 ## Test Suite
 
 Run:
@@ -170,4 +208,4 @@ Run:
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover starter layout, schema contracts, initializer behavior, validator behavior, and an end-to-end init-record-page-validate workflow.
+The tests cover starter layout, schema contracts, initializer behavior, validator behavior, relation rendering, and end-to-end init-record-page-validate workflows.

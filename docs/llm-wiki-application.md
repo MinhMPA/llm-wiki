@@ -94,6 +94,33 @@ A valid wiki exits with status `0` and prints `valid: ...`.
 
 Validation is structural. It checks records, page frontmatter, mirrored titles, proposal sections, wiki links, and source-record citations. It does not decide whether every claim has enough evidence.
 
+## Add Source Relations
+
+Create relation records under `wiki_records/relations/` when one source should point to another in Obsidian graph view:
+
+```yaml
+record_id: REL-0001
+record_type: relation
+status: active
+source_record_id: SRC-0001
+target_record_id: SRC-0002
+relation_type: background_for
+direction: source_to_target
+evidence: []
+created_date: 2026-05-16
+reviewed_date:
+confidence: high
+```
+
+For example, a safe-sleep guidance source can mark a hospital discharge checklist as `background_for`. The renderer turns active outgoing relations into managed links:
+
+```bash
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki
+python3 llm-wiki/core/scripts/render_relations.py path/to/wiki --apply
+```
+
+The first command previews source pages that would change. The second rewrites only managed `## Related sources` sections. Then run validation.
+
 ## Filing Query Results
 
 When a query produces durable synthesis worth keeping:

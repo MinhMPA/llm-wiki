@@ -26,12 +26,14 @@ Lint may fix mechanical drift automatically:
 - page frontmatter order and allowed fields
 - mirrored page fields that drift from authoritative records
 - log entries for lint or validation runs
+- managed `Related sources` sections rendered from active relation records
 
 Lint must request approval before semantic, schema, or destructive changes:
 
 - duplicate merges
 - superseding sources
 - evidence interpretation changes
+- source relation creation, removal, or semantic relation changes
 - schema rule changes
 - new synthesis pages
 - deletion or archival
@@ -40,3 +42,15 @@ Lint must request approval before semantic, schema, or destructive changes:
 ## Schema Proposal Workflow
 
 Agents may add proposals to `WIKI_SCHEMA_PROPOSALS.md` under `Pending`. Agents may move proposals to `Approved` or `Rejected` only after explicit human approval or rejection. Approved proposals may then be applied to `WIKI_SCHEMA.md` and logged in `wiki_pages/log.md`.
+
+## Source Relation Workflow
+
+To add or change a source-to-source relationship:
+
+1. Confirm the semantic relation with a human when it changes source meaning, duplicate status, or supersession.
+2. Write or update one relation record under `wiki_records/relations/`.
+3. Run `python3 llm-wiki/core/scripts/render_relations.py WIKI_ROOT` to preview managed section changes.
+4. Run `python3 llm-wiki/core/scripts/render_relations.py WIKI_ROOT --apply` to mechanically rewrite only managed `Related sources` sections.
+5. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
+
+The renderer must not rewrite source-summary prose, citations, frontmatter, or ordinary Obsidian links outside the managed section.
