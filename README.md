@@ -1,5 +1,7 @@
 # LLM Wiki
 
+This project is inspired by [Andrej Karpathy's `llm-wiki.md` idea file](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), which describes the pattern of using LLM agents to build and maintain a persistent markdown wiki from raw sources.
+
 LLM Wiki is a portable, schema-driven skill for building a maintained markdown knowledge base with an LLM agent.
 
 Instead of treating sources as a pile of files to search every time, LLM Wiki turns them into:
