@@ -250,6 +250,50 @@ class TestValidateWiki(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_active_bibtex_sidecar_requires_matching_bib_file(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://arxiv.org/abs/1808.02002
+                source_type: paper
+                title: Example Paper
+                authors: []
+                added_date: 2026-05-18
+                arxiv_id: 1808.02002
+                """,
+            )
+            sidecar = wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml"
+            sidecar.write_text(
+                "\n".join(
+                    [
+                        "record_id: SRC-0001",
+                        "record_type: bibtex",
+                        "status: active",
+                        "provider: inspire",
+                        "provider_priority: 1",
+                        "providers_tried:",
+                        "  - inspire",
+                        "lookup_id: arxiv:1808.02002",
+                        "bibtex_key: Example:2018",
+                        "fetched_date: 2026-05-18",
+                        "source_bib_path: wiki_records/bibtex/SRC-0001.bib",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("missing BibTeX file", result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:
