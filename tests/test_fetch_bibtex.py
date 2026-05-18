@@ -290,3 +290,35 @@ class TestFetchBibtex(unittest.TestCase):
                 "@article{PreferredKey,",
                 (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").read_text(encoding="utf-8"),
             )
+
+    def test_provider_failure_reports_error_without_traceback(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            module = load_fetch_module()
+            with mock.patch.object(module, "fetch_from_inspire", side_effect=OSError("network down")):
+                result = call_main(module, [str(wiki), "SRC-0001"])
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("fetch failed", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_all_mode_continues_after_provider_failure(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            record = wiki / "wiki_records" / "sources" / "SRC-0002.yaml"
+            record.write_text(
+                (wiki / "wiki_records" / "sources" / "SRC-0001.yaml")
+                .read_text(encoding="utf-8")
+                .replace("SRC-0001", "SRC-0002")
+                .replace("1808.02002", "2401.01234"),
+                encoding="utf-8",
+            )
+            module = load_fetch_module()
+            with mock.patch.object(
+                module,
+                "fetch_from_inspire",
+                side_effect=[OSError("network down"), "@article{SecondKey,\n  title={Second}\n}\n"],
+            ):
+                result = call_main(module, [str(wiki), "--all", "--apply"])
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("SRC-0001: fetch failed", result.stderr)
+            self.assertTrue((wiki / "wiki_records" / "bibtex" / "SRC-0002.bib").exists())

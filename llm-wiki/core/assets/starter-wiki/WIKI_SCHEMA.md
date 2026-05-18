@@ -156,7 +156,7 @@ fetched_date: 2026-05-18
 source_bib_path: wiki_records/bibtex/SRC-0001.bib
 ```
 
-BibTeX sidecars live under `wiki_records/bibtex/` as `.yaml` files beside canonical per-source `.bib` files. The generated `wiki_records/bibtex/references.bib` export is non-canonical.
+BibTeX sidecars live under `wiki_records/bibtex/` as `.yaml` files beside canonical per-source `.bib` files. Active sidecars must use `wiki_records/bibtex/SRC-XXXX.bib`, and each active per-source `.bib` file must contain exactly one BibTeX entry. The generated `wiki_records/bibtex/references.bib` export is non-canonical and must match the deterministic active export when present.
 
 A v1 relation record uses this YAML contract:
 

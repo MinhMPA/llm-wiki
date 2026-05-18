@@ -223,4 +223,4 @@ fetched_date: 2026-05-18
 source_bib_path: wiki_records/bibtex/SRC-0001.bib
 ```
 
-The BibTeX sidecar field set is closed. `record_type` must be `bibtex`. The generated aggregate `wiki_records/bibtex/references.bib` is non-canonical and must be regenerated from active sidecars and per-source `.bib` files.
+The BibTeX sidecar field set is closed. `record_type` must be `bibtex`. Active sidecars must point to the canonical `wiki_records/bibtex/SRC-XXXX.bib` path, and that file must contain exactly one BibTeX entry. The generated aggregate `wiki_records/bibtex/references.bib` is non-canonical and must be regenerated from active sidecars and per-source `.bib` files.

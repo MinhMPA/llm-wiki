@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from bibtex_support import extract_bibtex_key, normalize_bibtex_entry
+from bibtex_support import extract_bibtex_key, extract_bibtex_keys, normalize_bibtex_entry
 from validate_wiki import parse_simple_yaml, scalar_value
 
 
@@ -47,12 +47,23 @@ def export_entries(root: Path) -> tuple[list[str], list[str]]:
         if scalar_value(sidecar, "status") != "active":
             continue
 
-        bib_path = root / scalar_value(sidecar, "source_bib_path")
+        bib_path = root / "wiki_records" / "bibtex" / f"{record_id}.bib"
         if not bib_path.is_file():
-            errors.append(f"{record_id}: missing BibTeX file: {scalar_value(sidecar, 'source_bib_path')}")
+            errors.append(f"{record_id}: missing BibTeX file: wiki_records/bibtex/{record_id}.bib")
             continue
         entry = normalize_bibtex_entry(bib_path.read_text(encoding="utf-8"))
-        key = extract_bibtex_key(entry)
+        keys = extract_bibtex_keys(entry)
+        if not keys:
+            errors.append(f"{record_id}: BibTeX entry key not found")
+            continue
+        if len(keys) != 1:
+            errors.append(f"{record_id}: source BibTeX file must contain exactly one BibTeX entry")
+            continue
+        try:
+            key = extract_bibtex_key(entry)
+        except ValueError as error:
+            errors.append(f"{record_id}: {error}")
+            continue
         if key in seen_keys:
             errors.append(f"duplicate BibTeX key: {key} ({seen_keys[key]}, {record_id})")
             continue

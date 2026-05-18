@@ -659,6 +659,155 @@ class TestValidateWiki(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("references.bib contains non-active BibTeX key: Archived:2018", result.stderr)
 
+    def test_references_bib_must_match_expected_active_export(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki, record_id="SRC-0001")
+            write_bibtex_source(wiki, record_id="SRC-0002")
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{AKey,
+                  title={A}
+                }
+                """,
+            )
+            write_bibtex_entry(
+                wiki,
+                "SRC-0002.bib",
+                """
+                @article{BKey,
+                  title={B}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: AKey
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0002.yaml",
+                """
+                record_id: SRC-0002
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: BKey
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0002.bib
+                """,
+            )
+            write_bibtex_entry(
+                wiki,
+                "references.bib",
+                """
+                @article{BKey,
+                  title={B}
+                }
+                @article{AKey,
+                  title={Old A}
+                }
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("references.bib does not match active bibliography export", result.stderr)
+
+    def test_active_bibtex_sidecar_rejects_traversal_source_bib_path_without_reading_it(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            outside = wiki.parent / "outside.bib"
+            outside.write_text("@article{Outside,\n  title={Outside}\n}\n", encoding="utf-8")
+            write_bibtex_source(wiki)
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Example:2018,
+                  title={Example}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                f"""
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: Example:2018
+                fetched_date: 2026-05-18
+                source_bib_path: ../outside.bib
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("source_bib_path must be wiki_records/bibtex/SRC-0001.bib", result.stderr)
+            self.assertNotIn("does not match BibTeX entry key", result.stderr)
+
+    def test_active_bibtex_sidecar_rejects_multi_entry_bib_file(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Example:2018,
+                  title={Example}
+                }
+                @article{Extra:2018,
+                  title={Extra}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: Example:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("must contain exactly one BibTeX entry", result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:

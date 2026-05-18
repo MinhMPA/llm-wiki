@@ -745,12 +745,19 @@ def validate_bibtex_records(
                 errors.append(f"{location}: source_bib_path must be {expected_bib_path}")
             if not bibtex_key:
                 errors.append(f"{location}: bibtex_key is required for active status")
-            bib_path = root / source_bib_path if source_bib_path else bibtex_dir / f"{record_id}.bib"
+            bib_path = bibtex_dir / f"{record_id}.bib"
             if not bib_path.is_file():
-                errors.append(f"{location}: missing BibTeX file: {source_bib_path or expected_bib_path}")
+                errors.append(f"{location}: missing BibTeX file: {expected_bib_path}")
+            elif source_bib_path != expected_bib_path:
+                pass
             else:
                 entry_text = read_text(bib_path, errors, relative_path(root, bib_path))
-                entry_key = extract_bibtex_key(entry_text)
+                entry_keys = extract_bibtex_keys(entry_text)
+                if len(entry_keys) != 1:
+                    errors.append(f"{relative_path(root, bib_path)}: source BibTeX file must contain exactly one BibTeX entry")
+                    entry_key = entry_keys[0] if entry_keys else ""
+                else:
+                    entry_key = entry_keys[0]
                 if not entry_key:
                     errors.append(f"{relative_path(root, bib_path)}: BibTeX entry key not found")
                 elif bibtex_key and entry_key != bibtex_key:
@@ -809,6 +816,35 @@ def validate_references_bib(
     for key in keys:
         if key not in active_keys:
             errors.append(f"{location}: references.bib contains non-active BibTeX key: {key}")
+
+    expected_entries: list[str] = []
+    for record_id in sorted(records):
+        record = records[record_id]
+        source = source_records.get(record_id)
+        if source is None:
+            continue
+        if scalar_value(source.data, "status") != "active":
+            continue
+        if scalar_value(record.data, "status") != "active":
+            continue
+        if scalar_value(record.data, "source_bib_path") != f"wiki_records/bibtex/{record_id}.bib":
+            continue
+        bib_path = root / "wiki_records" / "bibtex" / f"{record_id}.bib"
+        if not bib_path.is_file():
+            continue
+        entry_text = read_text(bib_path, errors, relative_path(root, bib_path))
+        entry_keys = extract_bibtex_keys(entry_text)
+        if len(entry_keys) != 1:
+            continue
+        if entry_keys[0] != scalar_value(record.data, "bibtex_key"):
+            continue
+        expected_entries.append(entry_text.strip())
+
+    expected_text = "\n".join(expected_entries)
+    if expected_text:
+        expected_text += "\n"
+    if text != expected_text:
+        errors.append(f"{location}: references.bib does not match active bibliography export")
 
 
 def validate_source_storage(root: Path, data: dict[str, Any], location: str, errors: list[str]) -> None:

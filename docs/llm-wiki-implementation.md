@@ -116,7 +116,7 @@ Behavior:
 - Google Scholar is not part of v1.
 - `export_bibtex.py` is offline and dry-runs by default.
 - `export_bibtex.py --apply` writes generated `references.bib`.
-- `references.bib` is non-canonical and contains active entries only. When present, validation rejects duplicate keys and keys that do not belong to active bibliography sidecars for active sources.
+- `references.bib` is non-canonical and contains active entries only. When present, validation compares it to the deterministic active export and rejects stale content, missing entries, wrong order, duplicate keys, and keys that do not belong to active bibliography sidecars for active sources.
 
 ## Validator
 
@@ -197,7 +197,7 @@ BibTeX sidecars live in `wiki_records/bibtex/*.yaml`. The `record_id` must match
 
 Required fields are `record_id`, `record_type`, `status`, `provider`, `provider_priority`, `providers_tried`, `lookup_id`, `bibtex_key`, `fetched_date`, and `source_bib_path`.
 
-For active records, `source_bib_path` points to the matching per-source `.bib` file. For unresolved records, `provider`, `provider_priority`, `bibtex_key`, and `source_bib_path` stay blank. `providers_tried` is always a list and follows the fixed provider order.
+For active records, `source_bib_path` must be the matching canonical per-source `.bib` file, `wiki_records/bibtex/SRC-XXXX.bib`. Each active per-source `.bib` file must contain exactly one BibTeX entry. For unresolved records, `provider`, `provider_priority`, `bibtex_key`, and `source_bib_path` stay blank. `providers_tried` is always a list and follows the fixed provider order.
 
 ## Page Contract
 
@@ -244,7 +244,7 @@ For processed source summaries, it also checks that active outgoing renderable r
 
 ## Bibliography Validation
 
-The validator checks that BibTeX sidecars use the closed field set, reference existing source records, use valid provider values, preserve `providers_tried` order, point active records to existing `.bib` files, and keep sidecar keys aligned with entry keys and source-record overrides.
+The validator checks that BibTeX sidecars use the closed field set, reference existing source records, use valid provider values, preserve `providers_tried` order, point active records to canonical single-entry `.bib` files, keep sidecar keys aligned with entry keys and source-record overrides, and reject stale generated `references.bib` exports.
 
 ## Test Suite
 

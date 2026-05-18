@@ -194,7 +194,7 @@ Fetched entries live under `wiki_records/bibtex/` as `SRC-0001.bib` plus `SRC-00
 python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --apply
 ```
 
-The generated `wiki_records/bibtex/references.bib` is non-canonical. Per-source `.bib` files and sidecar `.yaml` records remain authoritative, and validation rejects duplicate or non-active entries if the aggregate file is present.
+The generated `wiki_records/bibtex/references.bib` is non-canonical. Per-source `.bib` files and sidecar `.yaml` records remain authoritative. Each active per-source `.bib` file must contain exactly one BibTeX entry at the canonical `wiki_records/bibtex/SRC-XXXX.bib` path, and validation rejects a stale aggregate when it no longer exactly matches the active export.
 
 ## Manage A Wiki
 

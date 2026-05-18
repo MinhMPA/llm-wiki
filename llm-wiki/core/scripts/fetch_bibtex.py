@@ -237,7 +237,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{record_id}: unknown source record", file=sys.stderr)
             exit_code = 1
             continue
-        code, stdout, stderr = fetch_for_source(args.wiki_root, record_id, data, args.apply)
+        try:
+            code, stdout, stderr = fetch_for_source(args.wiki_root, record_id, data, args.apply)
+        except Exception as error:
+            print(f"{record_id}: fetch failed: {error}", file=sys.stderr)
+            exit_code = 1
+            continue
         if stdout:
             print(stdout, end="")
         if stderr:

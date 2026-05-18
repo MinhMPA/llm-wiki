@@ -155,3 +155,44 @@ class TestExportBibtex(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(external.exists())
             self.assertFalse((wiki / "wiki_records" / "bibtex" / "references.bib").exists())
+
+    def test_export_ignores_invalid_sidecar_source_bib_path(self):
+        with prepared_wiki_with_two_active_bibtex_entries() as wiki:
+            sidecar = wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml"
+            sidecar.write_text(
+                sidecar.read_text(encoding="utf-8").replace(
+                    "source_bib_path: wiki_records/bibtex/SRC-0001.bib",
+                    "source_bib_path: /tmp/outside.bib",
+                ),
+                encoding="utf-8",
+            )
+
+            result = run_export(wiki)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("2 entries", result.stdout)
+
+    def test_export_rejects_multi_entry_source_bib(self):
+        with prepared_wiki_with_two_active_bibtex_entries() as wiki:
+            (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").write_text(
+                "@article{AKey,\n  title={A}\n}\n@article{ExtraKey,\n  title={Extra}\n}\n",
+                encoding="utf-8",
+            )
+
+            result = run_export(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("must contain exactly one BibTeX entry", result.stderr)
+
+    def test_export_reports_parse_error_without_traceback(self):
+        with prepared_wiki_with_two_active_bibtex_entries() as wiki:
+            (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").write_text(
+                "not bibtex\n",
+                encoding="utf-8",
+            )
+
+            result = run_export(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("BibTeX entry key not found", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)

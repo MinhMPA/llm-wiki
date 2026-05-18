@@ -10,9 +10,12 @@ PROVIDER_ORDER = ["inspire", "ads"]
 
 
 def normalize_arxiv_id(value: str) -> str:
-    match = ARXIV_ID_RE.match(value.strip())
+    normalized = value.strip()
+    if normalized.endswith(".pdf"):
+        normalized = normalized[:-4]
+    match = ARXIV_ID_RE.match(normalized)
     if match is None:
-        return value.strip()
+        return normalized
     return match.group("base")
 
 
@@ -25,6 +28,10 @@ def extract_bibtex_key(entry_text: str) -> str:
     if match is None:
         raise ValueError("BibTeX entry key not found")
     return match.group(1).strip()
+
+
+def extract_bibtex_keys(entry_text: str) -> list[str]:
+    return [match.strip() for match in re.findall(r"@\w+\{([^,\s]+)\s*,", entry_text)]
 
 
 def rewrite_bibtex_key(entry_text: str, new_key: str) -> str:

@@ -36,11 +36,18 @@ class TestBibtexSupport(unittest.TestCase):
         module = load_module()
         candidates = module.source_identifier_candidates(
             {
-                "source_url": "https://arxiv.org/pdf/2401.01234v1",
+                "source_url": "https://arxiv.org/pdf/2401.01234v1.pdf",
                 "raw_path": "raw/SRC-0001/2401.01234v2.pdf",
             }
         )
         self.assertEqual(candidates, ["arxiv:2401.01234"])
+
+    def test_extract_bibtex_keys_reads_all_entry_keys(self):
+        module = load_module()
+        keys = module.extract_bibtex_keys(
+            "@article{First,\n  title={A}\n}\n@book{Second,\n  title={B}\n}\n"
+        )
+        self.assertEqual(keys, ["First", "Second"])
 
     def test_extract_bibtex_key_reads_single_entry_key(self):
         module = load_module()

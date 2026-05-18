@@ -9,7 +9,7 @@ wiki_records/bibtex/SRC-0001.bib
 wiki_records/bibtex/SRC-0001.yaml
 ```
 
-The generated aggregate export lives at `wiki_records/bibtex/references.bib`. It is non-canonical and should be regenerated from source sidecars and per-source `.bib` files.
+The generated aggregate export lives at `wiki_records/bibtex/references.bib`. It is non-canonical and should be regenerated from source sidecars and per-source `.bib` files. When present, validation compares it to the deterministic active export.
 
 ## Sidecar Contract
 
@@ -28,6 +28,8 @@ source_bib_path: wiki_records/bibtex/SRC-0001.bib
 ```
 
 Provider priority is `inspire`, then `ads`. ADS is optional and uses `ADS_API_TOKEN` when configured. ADS lookup searches for a bibcode, then exports BibTeX for that bibcode. Missing ADS credentials mean ADS was not attempted and should not appear in `providers_tried`.
+
+Each active per-source `.bib` file must live at the canonical `wiki_records/bibtex/SRC-XXXX.bib` path and contain exactly one BibTeX entry.
 
 ## Bibliography Workflow
 
