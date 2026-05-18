@@ -175,12 +175,23 @@ The renderer is dry-run by default. With `--apply`, it rewrites only managed `##
 
 ## Export BibTeX For LaTeX
 
-For active paper sources with `arxiv_id` or `doi`, fetch canonical BibTeX artifacts:
+Run bibliography commands on the wiki root, not on `raw/`. The fetcher reads source records from `wiki_records/sources/*.yaml`; it does not scan `raw/` directly.
+
+For active paper sources with `arxiv_id`, `doi`, an arXiv `source_url`, or an arXiv-looking `raw_path`, fetch canonical BibTeX artifacts:
 
 ```bash
 python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001
 python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001 --apply
 ```
+
+For a whole wiki, preview and then fetch missing entries:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki --missing
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki --missing --apply
+```
+
+Use `--retry-unresolved` when you want unresolved sidecars tried again. Use `--all` when you intentionally want to revisit every eligible active paper source.
 
 The fetcher tries INSPIRE first. It tries NASA/ADS second only when `ADS_API_TOKEN` is set; ADS lookup searches for a bibcode, then calls ADS BibTeX export.
 
@@ -188,13 +199,28 @@ The fetcher tries INSPIRE first. It tries NASA/ADS second only when `ADS_API_TOK
 export ADS_API_TOKEN="..."
 ```
 
-Fetched entries live under `wiki_records/bibtex/` as `SRC-0001.bib` plus `SRC-0001.yaml`. Export a LaTeX-ready aggregate file with:
+The ADS token is runtime configuration. Do not put it in git, wiki records, README files, or shell commands you plan to share. If a token is exposed, regenerate it in ADS.
+
+Fetched entries live under `wiki_records/bibtex/` as `SRC-0001.bib` plus `SRC-0001.yaml`. Preview and export a LaTeX-ready aggregate file with:
 
 ```bash
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki
 python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --apply
 ```
 
+To write directly into a LaTeX draft:
+
+```bash
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --output /path/to/draft/references.bib --apply
+```
+
 The generated `wiki_records/bibtex/references.bib` is non-canonical. Per-source `.bib` files and sidecar `.yaml` records remain authoritative. Each active per-source `.bib` file must contain exactly one BibTeX entry at the canonical `wiki_records/bibtex/SRC-XXXX.bib` path, and validation rejects a stale aggregate when it no longer exactly matches the active export.
+
+Validate after fetching or exporting:
+
+```bash
+python3 llm-wiki/core/scripts/validate_wiki.py path/to/wiki
+```
 
 ## Manage A Wiki
 

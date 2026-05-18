@@ -135,7 +135,7 @@ doi:
 bibtex_key:
 ```
 
-Fetch BibTeX after ingest when you need citation artifacts:
+Fetch BibTeX after ingest when you need citation artifacts. Run the command on the wiki root, not on `raw/`; the fetcher reads source records under `wiki_records/sources/`.
 
 ```bash
 python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001
@@ -144,13 +144,22 @@ python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001 --apply
 
 The first command previews. The second writes `wiki_records/bibtex/SRC-0001.bib` and `wiki_records/bibtex/SRC-0001.yaml`.
 
+For a whole wiki, fetch missing entries in two steps:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki --missing
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki --missing --apply
+```
+
+Use `--retry-unresolved` to retry sources previously marked unresolved. Use `--all` only when you intentionally want to revisit every eligible active paper source.
+
 The fetcher tries INSPIRE first. To enable the ADS fallback, set an ADS token after core installation:
 
 ```bash
 export ADS_API_TOKEN="..."
 ```
 
-Then retry the fetch. The token is runtime configuration and should not be written into wiki files.
+Then retry the fetch. The token is runtime configuration and should not be written into wiki files, docs, git, or shared shell commands. Regenerate the token in ADS if it is exposed.
 
 Export a draft-ready bibliography:
 
@@ -163,6 +172,12 @@ The generated file is `wiki_records/bibtex/references.bib`. It includes active e
 
 ```bash
 python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --output /path/to/draft/references.bib --apply
+```
+
+Validate after fetching or exporting:
+
+```bash
+python3 llm-wiki/core/scripts/validate_wiki.py path/to/wiki
 ```
 
 ## Filing Query Results

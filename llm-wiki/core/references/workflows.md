@@ -45,9 +45,11 @@ Use bibliography maintenance after ingest, under the lint boundary:
 
 1. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001` to preview lookup.
 2. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001 --apply` to write canonical BibTeX artifacts.
-3. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT` to preview aggregate export changes.
-4. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --apply` to write `wiki_records/bibtex/references.bib`.
-5. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
+3. For bulk maintenance, run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT --missing` and then rerun with `--apply`.
+4. Use `--retry-unresolved` to retry unresolved sidecars, or `--all` to revisit every eligible active paper source.
+5. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT` to preview aggregate export changes.
+6. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --apply` to write `wiki_records/bibtex/references.bib`.
+7. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
 
 ## Schema Proposal Workflow
 

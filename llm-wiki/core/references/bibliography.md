@@ -33,10 +33,15 @@ Each active per-source `.bib` file must live at the canonical `wiki_records/bibt
 
 ## Bibliography Workflow
 
-Use bibliography maintenance after ingest, under the lint boundary:
+Use bibliography maintenance after ingest, under the lint boundary. Run commands on the wiki root. The fetcher reads source records under `wiki_records/sources/`; it does not scan `raw/` directly.
 
 1. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001` to preview lookup.
 2. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001 --apply` to write canonical BibTeX artifacts.
-3. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT` to preview aggregate export changes.
-4. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --apply` to write `wiki_records/bibtex/references.bib`.
-5. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
+3. For bulk maintenance, run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT --missing` and then rerun with `--apply`.
+4. Use `--retry-unresolved` to retry unresolved sidecars, or `--all` to revisit every eligible active paper source.
+5. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT` to preview aggregate export changes.
+6. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --apply` to write `wiki_records/bibtex/references.bib`.
+7. Optionally write to a LaTeX draft with `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --output /path/to/draft/references.bib --apply`.
+8. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
+
+Eligible automatic fetch targets are active paper sources with an exact identifier from `arxiv_id`, `doi`, an arXiv `source_url`, or an arXiv-looking `raw_path`.
