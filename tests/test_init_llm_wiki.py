@@ -44,6 +44,7 @@ class TestInitLlmWiki(unittest.TestCase):
             self.assertTrue((target / "WIKI_SCHEMA.md").is_file())
             self.assertTrue((target / "wiki_records" / "sources").is_dir())
             self.assertTrue((target / "wiki_records" / "relations").is_dir())
+            self.assertTrue((target / "wiki_records" / "bibtex").is_dir())
             self.assertTrue((target / "wiki_pages" / "index.md").is_file())
             self.assertIn("created:", result.stdout)
 

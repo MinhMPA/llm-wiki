@@ -11,7 +11,7 @@ This wiki preserves knowledge as portable files with explicit records, readable 
 - `AGENTS.md`: pointer file for ChatGPT Codex.
 - `CLAUDE.md`: pointer file for Claude Code.
 - `raw/`: local immutable source artifacts.
-- `wiki_records/`: structured authoritative records. Source record files live under `wiki_records/sources/` as `.yaml` files. Example: `wiki_records/sources/SRC-0001.yaml`. Source relation records live under `wiki_records/relations/` as `.yaml` files. Example: `wiki_records/relations/REL-0001.yaml`.
+- `wiki_records/`: structured authoritative records. Source record files live under `wiki_records/sources/` as `.yaml` files. Example: `wiki_records/sources/SRC-0001.yaml`. Source relation records live under `wiki_records/relations/` as `.yaml` files. Example: `wiki_records/relations/REL-0001.yaml`. Bibliography artifacts live under `wiki_records/bibtex/`.
 - `wiki_pages/`: human-readable maintained wiki pages. Source-summary pages live under `wiki_pages/sources/` as `.md` files. Entity, concept, and synthesis pages live under matching subdirectories.
 
 ## Page Types
@@ -81,6 +81,8 @@ Mechanical drift may be fixed automatically. Semantic, schema, or destructive ch
 
 Rendering managed `Related sources` sections from approved relation records is a mechanical lint operation. Creating, removing, or changing the meaning of relation records is semantic work and requires human approval.
 
+Bibliography workflow maintenance is a lint-boundary operation for active paper sources. Fetch previews and aggregate export previews are non-mutating by default; writing canonical BibTeX artifacts or `wiki_records/bibtex/references.bib` requires `--apply`.
+
 ## Naming Conventions
 
 Use explicit short field names. Universal field names are preferred when precise, including `record_id`, `record_type`, `page_type`, `source_type`, and `source_format`.
@@ -105,11 +107,14 @@ added_date: 2026-05-11
 processed_date:
 published_date:
 content_fingerprint:
+arxiv_id: 1808.02002
+doi:
+bibtex_key:
 ```
 
 Required source record fields are `record_id`, `record_type`, `status`, `source_storage`, `source_type`, `title`, `authors`, and `added_date`.
 
-Optional source record fields are `duplicate_of`, `superseded_by`, `raw_path`, `source_url`, `page_path`, `source_format`, `processed_date`, `published_date`, and `content_fingerprint`.
+Optional source record fields are `duplicate_of`, `superseded_by`, `raw_path`, `source_url`, `page_path`, `source_format`, `processed_date`, `published_date`, `content_fingerprint`, `arxiv_id`, `doi`, and `bibtex_key`.
 
 The source record field set is closed in v1. Unknown fields are invalid. Human navigation fields such as `tags` belong only in `wiki_pages/` frontmatter.
 
@@ -134,6 +139,24 @@ Conditional source record rules:
 Controlled `source_type` values are `article`, `paper`, `book`, `chapter`, `transcript`, `note`, `image`, `dataset`, `video`, `audio`, `report`, `documentation`, and `other`.
 
 Controlled `source_format` values are `markdown`, `pdf`, `html`, `text`, `image`, `audio`, `video`, `csv`, `spreadsheet`, `json`, `yaml`, and `other`.
+
+A v1 BibTeX sidecar uses this YAML contract:
+
+```yaml
+record_id: SRC-0001
+record_type: bibtex
+status: active
+provider: inspire
+provider_priority: 1
+providers_tried:
+  - inspire
+lookup_id: arxiv:1808.02002
+bibtex_key: Schmidt:2018
+fetched_date: 2026-05-18
+source_bib_path: wiki_records/bibtex/SRC-0001.bib
+```
+
+BibTeX sidecars live under `wiki_records/bibtex/` as `.yaml` files beside canonical per-source `.bib` files. The generated `wiki_records/bibtex/references.bib` export is non-canonical.
 
 A v1 relation record uses this YAML contract:
 

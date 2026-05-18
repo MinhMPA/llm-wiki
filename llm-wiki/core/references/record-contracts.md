@@ -39,9 +39,18 @@ added_date: 2026-05-10
 processed_date:
 published_date:
 content_fingerprint:
+arxiv_id: 1808.02002
+doi:
+bibtex_key:
 ```
 
-The v1 field set is closed. Unknown source record fields are invalid. Human navigation fields such as `tags` belong in `wiki_pages/` frontmatter, not in canonical record YAML.
+Optional bibliography identifier fields:
+
+- `arxiv_id`
+- `doi`
+- `bibtex_key`
+
+The v1 field set is closed. Unknown source record fields are invalid. Human navigation fields such as `tags` belong in `wiki_pages/` frontmatter, not in canonical record YAML. `bibtex_key` belongs in source records and BibTeX sidecars, not page frontmatter.
 
 Allowed `status` values:
 
@@ -183,3 +192,35 @@ Allowed `confidence` values:
 - `archived` relations remain records for auditability but must not render.
 - A processed source with `status: duplicate` and `duplicate_of` requires an active `duplicates` relation to the same target.
 - A processed source with `status: superseded` and `superseded_by` requires an active `supersedes` relation to the same target.
+
+## BibTeX Sidecars
+
+BibTeX sidecars live in `wiki_records/bibtex/` as `.yaml` files named by source ID:
+
+```text
+wiki_records/bibtex/SRC-0001.yaml
+```
+
+Canonical per-source BibTeX entries live beside sidecars:
+
+```text
+wiki_records/bibtex/SRC-0001.bib
+```
+
+Full v1 field set:
+
+```yaml
+record_id: SRC-0001
+record_type: bibtex
+status: active
+provider: inspire
+provider_priority: 1
+providers_tried:
+  - inspire
+lookup_id: arxiv:1808.02002
+bibtex_key: Schmidt:2018
+fetched_date: 2026-05-18
+source_bib_path: wiki_records/bibtex/SRC-0001.bib
+```
+
+The BibTeX sidecar field set is closed. `record_type` must be `bibtex`. The generated aggregate `wiki_records/bibtex/references.bib` is non-canonical and must be regenerated from active sidecars and per-source `.bib` files.

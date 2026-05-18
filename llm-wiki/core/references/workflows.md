@@ -39,6 +39,16 @@ Lint must request approval before semantic, schema, or destructive changes:
 - deletion or archival
 - substantive rewrites
 
+## Bibliography Workflow
+
+Use bibliography maintenance after ingest, under the lint boundary:
+
+1. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001` to preview lookup.
+2. Run `python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001 --apply` to write canonical BibTeX artifacts.
+3. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT` to preview aggregate export changes.
+4. Run `python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT --apply` to write `wiki_records/bibtex/references.bib`.
+5. Run `python3 llm-wiki/core/scripts/validate_wiki.py WIKI_ROOT`.
+
 ## Schema Proposal Workflow
 
 Agents may add proposals to `WIKI_SCHEMA_PROPOSALS.md` under `Pending`. Agents may move proposals to `Approved` or `Rejected` only after explicit human approval or rejection. Approved proposals may then be applied to `WIKI_SCHEMA.md` and logged in `wiki_pages/log.md`.

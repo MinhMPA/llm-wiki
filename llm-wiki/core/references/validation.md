@@ -9,8 +9,13 @@ V1 validation checks:
 - `WIKI_SCHEMA_PROPOSALS.md` queue sections and proposal blocks
 - source record contracts
 - closed source record fields
+- optional source bibliography fields: `arxiv_id`, `doi`, and `bibtex_key`
 - relation record contracts
 - closed relation record fields
+- BibTeX sidecar contracts under `wiki_records/bibtex/`
+- closed BibTeX sidecar fields
+- active BibTeX sidecars point to matching per-source `.bib` files
+- generated `wiki_records/bibtex/references.bib` is treated as non-canonical export output
 - managed `Related sources` consistency between relation records and source summary pages
 - archived relation records are not rendered
 - duplicate and superseded lifecycle fields have graph-visible mirror relations after source pages are processed

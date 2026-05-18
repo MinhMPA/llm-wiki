@@ -52,6 +52,7 @@ class TestStarterWiki(unittest.TestCase):
             "raw/.gitkeep",
             "wiki_records/sources/.gitkeep",
             "wiki_records/relations/.gitkeep",
+            "wiki_records/bibtex/.gitkeep",
             "wiki_pages/index.md",
             "wiki_pages/log.md",
             "wiki_pages/questions.md",
@@ -112,6 +113,9 @@ class TestStarterWiki(unittest.TestCase):
                 "processed_date",
                 "published_date",
                 "content_fingerprint",
+                "arxiv_id",
+                "doi",
+                "bibtex_key",
             ],
         )
 
@@ -123,6 +127,38 @@ class TestStarterWiki(unittest.TestCase):
         ]
         for term in required_contract_terms:
             self.assertIn(term, schema)
+
+    def test_schema_defines_bibliography_contract(self):
+        schema = (STARTER / "WIKI_SCHEMA.md").read_text(encoding="utf-8")
+        source_yaml = fenced_yaml_after(schema, "A v1 source record uses this YAML contract:")
+        self.assertEqual(
+            yaml_keys(source_yaml),
+            [
+                "record_id",
+                "record_type",
+                "status",
+                "duplicate_of",
+                "superseded_by",
+                "source_storage",
+                "raw_path",
+                "source_url",
+                "page_path",
+                "source_type",
+                "source_format",
+                "title",
+                "authors",
+                "added_date",
+                "processed_date",
+                "published_date",
+                "content_fingerprint",
+                "arxiv_id",
+                "doi",
+                "bibtex_key",
+            ],
+        )
+        self.assertIn("wiki_records/bibtex/", schema)
+        self.assertIn("Bibliography workflow", schema)
+        self.assertIn("record_type: bibtex", schema)
 
         self.assertEqual(
             parse_backtick_values(schema, "Required source record fields are "),
