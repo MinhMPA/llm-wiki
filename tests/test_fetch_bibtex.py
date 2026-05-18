@@ -18,6 +18,9 @@ INIT_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "init_llm_wiki.py"
 
 
 def load_fetch_module():
+    scripts_dir = str(FETCH_SCRIPT.parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
     spec = importlib.util.spec_from_file_location("fetch_bibtex", FETCH_SCRIPT)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -133,3 +136,89 @@ class TestFetchBibtex(unittest.TestCase):
             self.assertIn("would write", result.stdout)
             self.assertFalse((wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").exists())
 
+    def test_apply_writes_bib_and_sidecar_for_inspire_result(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            result = run_fetch_with_fake_provider(
+                wiki,
+                "SRC-0001",
+                "@article{Example:2018,\n  title={Example}\n}\n",
+                "--apply",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").exists())
+            sidecar = (wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml").read_text(encoding="utf-8")
+            self.assertIn("provider: inspire", sidecar)
+            self.assertIn("providers_tried:\n  - inspire", sidecar)
+
+    def test_fetch_uses_ads_when_inspire_misses_and_token_exists(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            env = os.environ.copy()
+            env["ADS_API_TOKEN"] = "token"
+            result = run_fetch_with_provider_sequence(
+                wiki,
+                "SRC-0001",
+                [None, "@article{AdsKey,\n  title={Example}\n}\n"],
+                "--apply",
+                env=env,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            sidecar = (wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml").read_text(encoding="utf-8")
+            self.assertIn("provider: ads", sidecar)
+            self.assertIn("  - inspire\n  - ads", sidecar)
+
+    def test_missing_ads_token_skips_ads_and_reports_unresolved(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            env = os.environ.copy()
+            env.pop("ADS_API_TOKEN", None)
+            result = run_fetch_with_provider_sequence(wiki, "SRC-0001", [None], "--apply", env=env)
+            self.assertEqual(result.returncode, 1)
+            sidecar = (wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml").read_text(encoding="utf-8")
+            self.assertIn("status: unresolved", sidecar)
+            self.assertIn("providers_tried:\n  - inspire", sidecar)
+            self.assertNotIn("  - ads", sidecar)
+
+    def test_missing_mode_skips_existing_sidecars_without_retry(self):
+        with prepared_wiki_with_unresolved_sidecar() as wiki:
+            result = run_fetch(wiki, "--missing")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("skipped unresolved", result.stdout)
+
+    def test_retry_unresolved_retries_unresolved_sidecar(self):
+        with prepared_wiki_with_unresolved_sidecar() as wiki:
+            result = run_fetch_with_fake_provider(
+                wiki,
+                "--missing",
+                "--retry-unresolved",
+                "@article{Retry:2018,\n  title={Example}\n}\n",
+                "--apply",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(
+                "Retry:2018",
+                (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").read_text(encoding="utf-8"),
+            )
+
+    def test_manual_orphan_bib_file_is_reported_but_not_inferred(self):
+        with prepared_wiki_with_active_arxiv_source() as wiki:
+            (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").write_text(
+                "@article{Manual:2018,\n  title={Manual}\n}\n",
+                encoding="utf-8",
+            )
+            result = run_fetch(wiki, "SRC-0001", "--apply")
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("orphan BibTeX file", result.stderr)
+            self.assertFalse((wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml").exists())
+
+    def test_bibtex_key_override_rewrites_entry_key(self):
+        with prepared_wiki_with_active_arxiv_source(bibtex_key="PreferredKey") as wiki:
+            result = run_fetch_with_fake_provider(
+                wiki,
+                "SRC-0001",
+                "@article{ProviderKey,\n  title={Example}\n}\n",
+                "--apply",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(
+                "@article{PreferredKey,",
+                (wiki / "wiki_records" / "bibtex" / "SRC-0001.bib").read_text(encoding="utf-8"),
+            )
