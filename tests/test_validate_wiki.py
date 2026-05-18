@@ -51,6 +51,18 @@ def write_relation_record(wiki, filename, text):
     return path
 
 
+def write_bibtex_sidecar(wiki, filename, text):
+    path = wiki / "wiki_records" / "bibtex" / filename
+    path.write_text(textwrap.dedent(text).strip() + "\n", encoding="utf-8")
+    return path
+
+
+def write_bibtex_entry(wiki, filename, text):
+    path = wiki / "wiki_records" / "bibtex" / filename
+    path.write_text(textwrap.dedent(text).strip() + "\n", encoding="utf-8")
+    return path
+
+
 def write_source_page(wiki, path, record_id, title, body="Summary."):
     page = wiki / path
     page.parent.mkdir(parents=True, exist_ok=True)
@@ -124,6 +136,33 @@ def setup_related_sources(wiki, body=None):
     write_processed_source(wiki, "SRC-0002", "Survey Data Release", "survey-data-release")
     if body is not None:
         write_source_page(wiki, "wiki_pages/sources/field-level-inference.md", "SRC-0001", "Field Level Inference", body)
+
+
+def write_bibtex_source(wiki, record_id="SRC-0001", status="active", bibtex_key=""):
+    write_source_record(
+        wiki,
+        f"{record_id}.yaml",
+        f"""
+        record_id: {record_id}
+        record_type: source
+        status: {status}
+        duplicate_of:
+        superseded_by:
+        source_storage: external
+        source_url: https://arxiv.org/abs/1808.02002
+        source_type: paper
+        source_format: pdf
+        title: Example Paper
+        authors: []
+        added_date: 2026-05-18
+        processed_date:
+        published_date:
+        content_fingerprint:
+        arxiv_id: 1808.02002
+        doi:
+        bibtex_key: {bibtex_key}
+        """,
+    )
 
 
 class TestValidateWiki(unittest.TestCase):
@@ -293,6 +332,212 @@ class TestValidateWiki(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("missing BibTeX file", result.stderr)
+
+    def test_unresolved_bibtex_sidecar_without_bib_file_passes(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: unresolved
+                provider:
+                provider_priority:
+                providers_tried:
+                  - inspire
+                lookup_id: arxiv:1808.02002
+                bibtex_key:
+                fetched_date: 2026-05-18
+                source_bib_path:
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_manual_bibtex_sidecar_allows_nonempty_providers_tried(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Example:2018,
+                  title={Example}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried:
+                  - inspire
+                  - ads
+                lookup_id:
+                bibtex_key: Example:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_bibtex_sidecar_rejects_provider_order_violation(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: unresolved
+                provider:
+                provider_priority:
+                providers_tried:
+                  - ads
+                  - inspire
+                lookup_id: arxiv:1808.02002
+                bibtex_key:
+                fetched_date: 2026-05-18
+                source_bib_path:
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("providers_tried must follow provider order", result.stderr)
+
+    def test_bibtex_sidecar_rejects_key_mismatch_with_entry(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Actual:2018,
+                  title={Example}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: inspire
+                provider_priority: 1
+                providers_tried:
+                  - inspire
+                lookup_id: arxiv:1808.02002
+                bibtex_key: Expected:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("bibtex_key does not match BibTeX entry key", result.stderr)
+
+    def test_bibtex_sidecar_rejects_unknown_source_record(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-9999.yaml",
+                """
+                record_id: SRC-9999
+                record_type: bibtex
+                status: unresolved
+                provider:
+                provider_priority:
+                providers_tried:
+                  - inspire
+                lookup_id: arxiv:1808.02002
+                bibtex_key:
+                fetched_date: 2026-05-18
+                source_bib_path:
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("record_id points to unknown source record", result.stderr)
+
+    def test_bibtex_sidecar_rejects_source_record_bibtex_key_mismatch(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki, bibtex_key="Preferred:2018")
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Provider:2018,
+                  title={Example}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: inspire
+                provider_priority: 1
+                providers_tried:
+                  - inspire
+                lookup_id: arxiv:1808.02002
+                bibtex_key: Provider:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("bibtex_key does not match source record bibtex_key", result.stderr)
+
+    def test_orphan_bibtex_file_without_sidecar_fails(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Orphan:2018,
+                  title={Example}
+                }
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("BibTeX file has no sidecar record", result.stderr)
 
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()

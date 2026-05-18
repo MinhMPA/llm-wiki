@@ -38,6 +38,7 @@ REQUIRED_DIRS = [
     "raw",
     "wiki_records/sources",
     "wiki_records/relations",
+    "wiki_records/bibtex",
     "wiki_pages/sources",
     "wiki_pages/entities",
     "wiki_pages/concepts",
@@ -95,6 +96,9 @@ ALLOWED_SOURCE_FIELDS = {
     "processed_date",
     "published_date",
     "content_fingerprint",
+    "arxiv_id",
+    "doi",
+    "bibtex_key",
 }
 
 SOURCE_STATUSES = {"active", "archived", "superseded", "duplicate"}
@@ -194,6 +198,24 @@ RELATION_LABEL_TYPES = {label: relation_type for relation_type, label in RELATIO
 RELATION_DIRECTIONS = {"source_to_target"}
 RELATION_CONFIDENCES = {"low", "medium", "high", "unknown"}
 
+REQUIRED_BIBTEX_FIELDS = [
+    "record_id",
+    "record_type",
+    "status",
+    "provider",
+    "provider_priority",
+    "providers_tried",
+    "lookup_id",
+    "bibtex_key",
+    "fetched_date",
+    "source_bib_path",
+]
+
+ALLOWED_BIBTEX_FIELDS = set(REQUIRED_BIBTEX_FIELDS)
+BIBTEX_STATUSES = {"active", "unresolved"}
+BIBTEX_PROVIDERS = {"inspire", "ads", "manual"}
+PROVIDER_ORDER = ["inspire", "ads"]
+
 PAGE_FRONTMATTER_FIELDS = {"record_id", "page_type", "title", "aliases", "tags"}
 PAGE_TYPES = {
     "source_summary",
@@ -222,6 +244,12 @@ class SourceRecord:
 
 @dataclass(frozen=True)
 class RelationRecord:
+    path: Path
+    data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class BibtexRecord:
     path: Path
     data: dict[str, Any]
 
@@ -461,6 +489,31 @@ def load_relation_records(root: Path, errors: list[str]) -> dict[str, RelationRe
     return records
 
 
+def load_bibtex_records(root: Path, errors: list[str]) -> dict[str, BibtexRecord]:
+    records: dict[str, BibtexRecord] = {}
+    bibtex_dir = root / "wiki_records" / "bibtex"
+    if not bibtex_dir.is_dir():
+        return records
+
+    for path in sorted(bibtex_dir.glob("*.yaml"), key=lambda item: item.name):
+        location = relative_path(root, path)
+        text = read_text(path, errors, location)
+        data, parse_errors = parse_simple_yaml(text, location)
+        errors.extend(parse_errors)
+
+        record_id = scalar_value(data, "record_id")
+        if not record_id:
+            errors.append(f"{location}: record_id is required")
+            continue
+
+        if record_id in records:
+            errors.append(f"{location}: duplicate record_id: {record_id}")
+        else:
+            records[record_id] = BibtexRecord(path=path, data=data)
+
+    return records
+
+
 def validate_source_records(root: Path, records: dict[str, SourceRecord], errors: list[str]) -> None:
     for record_id in sorted(records):
         record = records[record_id]
@@ -595,6 +648,124 @@ def validate_relation_records(
             value = scalar_value(data, field)
             if value and not is_valid_date(value):
                 errors.append(f"{location}: {field} must be YYYY-MM-DD")
+
+
+def extract_bibtex_key(entry_text: str) -> str:
+    match = re.search(r"@\w+\{([^,\s]+)\s*,", entry_text)
+    if match is None:
+        return ""
+    return match.group(1).strip()
+
+
+def providers_follow_order(providers: list[str]) -> bool:
+    positions = [PROVIDER_ORDER.index(provider) for provider in providers if provider in PROVIDER_ORDER]
+    return positions == sorted(positions) and len(positions) == len(set(positions))
+
+
+def validate_bibtex_records(
+    root: Path,
+    records: dict[str, BibtexRecord],
+    source_records: dict[str, SourceRecord],
+    errors: list[str],
+) -> None:
+    bibtex_dir = root / "wiki_records" / "bibtex"
+
+    for record_id in sorted(records):
+        record = records[record_id]
+        data = record.data
+        location = relative_path(root, record.path)
+
+        for field in sorted(data):
+            if field not in ALLOWED_BIBTEX_FIELDS:
+                errors.append(f"{location}: unsupported BibTeX record field: {field}")
+
+        for field in REQUIRED_BIBTEX_FIELDS:
+            if field not in data:
+                errors.append(f"{location}: {field} is required")
+            elif field != "providers_tried" and isinstance(data[field], list):
+                errors.append(f"{location}: {field} must be a scalar")
+
+        if record_id and not RECORD_ID_RE.fullmatch(record_id):
+            errors.append(f"{location}: record_id must look like SRC-0001")
+        if record_id and record_id != record.path.stem:
+            errors.append(f"{location}: record_id must match filename stem")
+        if record_id and record_id not in source_records:
+            errors.append(f"{location}: record_id points to unknown source record: {record_id}")
+
+        record_type = scalar_value(data, "record_type")
+        if record_type and record_type != "bibtex":
+            errors.append(f"{location}: record_type must be bibtex")
+
+        status = scalar_value(data, "status")
+        if status and status not in BIBTEX_STATUSES:
+            errors.append(f"{location}: status must be one of {', '.join(sorted(BIBTEX_STATUSES))}")
+
+        provider = scalar_value(data, "provider")
+        provider_priority = scalar_value(data, "provider_priority")
+        if status == "active":
+            if provider not in BIBTEX_PROVIDERS:
+                errors.append(f"{location}: provider must be one of {', '.join(sorted(BIBTEX_PROVIDERS))}")
+            if provider == "inspire" and provider_priority != "1":
+                errors.append(f"{location}: provider_priority must be 1 for inspire")
+            if provider == "ads" and provider_priority != "2":
+                errors.append(f"{location}: provider_priority must be 2 for ads")
+            if provider == "manual" and provider_priority:
+                errors.append(f"{location}: provider_priority must be blank for manual")
+        elif status == "unresolved":
+            if provider:
+                errors.append(f"{location}: provider must be blank for unresolved")
+            if provider_priority:
+                errors.append(f"{location}: provider_priority must be blank for unresolved")
+
+        providers_tried = data.get("providers_tried", "")
+        if not isinstance(providers_tried, list):
+            errors.append(f"{location}: providers_tried must be a list")
+            providers: list[str] = []
+        else:
+            providers = [str(provider_value) for provider_value in providers_tried]
+            for provider_value in providers:
+                if provider_value not in PROVIDER_ORDER:
+                    errors.append(f"{location}: providers_tried contains unknown provider: {provider_value}")
+            if not providers_follow_order(providers):
+                errors.append(f"{location}: providers_tried must follow provider order: {', '.join(PROVIDER_ORDER)}")
+
+        fetched_date = scalar_value(data, "fetched_date")
+        if fetched_date and not is_valid_date(fetched_date):
+            errors.append(f"{location}: fetched_date must be YYYY-MM-DD")
+
+        source_bib_path = scalar_value(data, "source_bib_path")
+        bibtex_key = scalar_value(data, "bibtex_key")
+        if status == "active":
+            expected_bib_path = f"wiki_records/bibtex/{record_id}.bib"
+            if source_bib_path != expected_bib_path:
+                errors.append(f"{location}: source_bib_path must be {expected_bib_path}")
+            if not bibtex_key:
+                errors.append(f"{location}: bibtex_key is required for active status")
+            bib_path = root / source_bib_path if source_bib_path else bibtex_dir / f"{record_id}.bib"
+            if not bib_path.is_file():
+                errors.append(f"{location}: missing BibTeX file: {source_bib_path or expected_bib_path}")
+            else:
+                entry_text = read_text(bib_path, errors, relative_path(root, bib_path))
+                entry_key = extract_bibtex_key(entry_text)
+                if not entry_key:
+                    errors.append(f"{relative_path(root, bib_path)}: BibTeX entry key not found")
+                elif bibtex_key and entry_key != bibtex_key:
+                    errors.append(f"{location}: bibtex_key does not match BibTeX entry key")
+                source = source_records.get(record_id)
+                if source is not None:
+                    source_key = scalar_value(source.data, "bibtex_key")
+                    if source_key and source_key != bibtex_key:
+                        errors.append(f"{location}: bibtex_key does not match source record bibtex_key")
+        elif status == "unresolved":
+            if bibtex_key:
+                errors.append(f"{location}: bibtex_key must be blank for unresolved")
+            if source_bib_path:
+                errors.append(f"{location}: source_bib_path must be blank for unresolved")
+
+    for path in sorted(bibtex_dir.glob("SRC-*.bib"), key=lambda item: item.name):
+        record_id = path.stem
+        if record_id not in records:
+            errors.append(f"{relative_path(root, path)}: BibTeX file has no sidecar record")
 
 
 def validate_source_storage(root: Path, data: dict[str, Any], location: str, errors: list[str]) -> None:
@@ -1062,8 +1233,10 @@ def validate_wiki(root: Path) -> list[str]:
     validate_proposals(root, errors)
     records = load_source_records(root, errors)
     relation_records = load_relation_records(root, errors)
+    bibtex_records = load_bibtex_records(root, errors)
     validate_source_records(root, records, errors)
     validate_relation_records(root, relation_records, records, errors)
+    validate_bibtex_records(root, bibtex_records, records, errors)
     validate_lifecycle_relation_mirrors(root, records, relation_records, errors)
     validate_pages(root, records, relation_records, errors)
     return errors
