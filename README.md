@@ -7,9 +7,11 @@ LLM Wiki is a portable, schema-driven skill for building a maintained markdown k
 Instead of treating sources as a pile of files to search every time, LLM Wiki turns them into:
 
 - structured source records and source relation records in `wiki_records/`;
+- canonical per-source BibTeX records for paper sources;
 - readable Obsidian-friendly pages in `wiki_pages/`;
 - source-record citations;
 - Obsidian-visible source-to-source links;
+- generated LaTeX-ready bibliography exports;
 - an index and log;
 - deterministic validation reports.
 
@@ -36,6 +38,14 @@ python3 llm-wiki/core/scripts/render_relations.py path/to/wiki
 python3 llm-wiki/core/scripts/render_relations.py path/to/wiki --apply
 ```
 
+Fetch and export BibTeX for paper sources when needed:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001 --apply
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --apply
+```
+
 Ask your agent to read:
 
 ```text
@@ -58,6 +68,7 @@ path/to/wiki/
   wiki_records/
     sources/
     relations/
+    bibtex/
   wiki_pages/
     index.md
     log.md
@@ -108,6 +119,9 @@ added_date: 2026-05-11
 processed_date: 2026-05-11
 published_date:
 content_fingerprint:
+arxiv_id:
+doi:
+bibtex_key:
 ```
 
 Then create a readable source summary:
@@ -159,6 +173,29 @@ python3 llm-wiki/core/scripts/validate_wiki.py path/to/wiki
 
 The renderer is dry-run by default. With `--apply`, it rewrites only managed `## Related sources` sections in source summaries. Ordinary prose and freeform Obsidian links are left alone.
 
+## Export BibTeX For LaTeX
+
+For active paper sources with `arxiv_id` or `doi`, fetch canonical BibTeX artifacts:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001 --apply
+```
+
+The fetcher tries INSPIRE first. It tries NASA/ADS second only when `ADS_API_TOKEN` is set; ADS lookup searches for a bibcode, then calls ADS BibTeX export.
+
+```bash
+export ADS_API_TOKEN="..."
+```
+
+Fetched entries live under `wiki_records/bibtex/` as `SRC-0001.bib` plus `SRC-0001.yaml`. Export a LaTeX-ready aggregate file with:
+
+```bash
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --apply
+```
+
+The generated `wiki_records/bibtex/references.bib` is non-canonical. Per-source `.bib` files and sidecar `.yaml` records remain authoritative, and validation rejects duplicate or non-active entries if the aggregate file is present.
+
 ## Manage A Wiki
 
 Use these recurring operations:
@@ -168,10 +205,12 @@ Use these recurring operations:
 - `file`: save durable query results into `wiki_pages/synthesis/` only with human approval.
 - `lint`: fix mechanical drift, but ask before semantic, schema, duplicate, archival, deletion, or synthesis changes.
 - `render-relations`: mechanically update managed related-source links from active relation records.
+- `fetch-bibtex`: fetch canonical BibTeX for active paper sources from INSPIRE, then ADS when configured.
+- `export-bibtex`: generate `wiki_records/bibtex/references.bib` from active canonical entries.
 - `validate`: run `validate_wiki.py` after edits.
 
 The validator is structural. It checks file layout, schema headings, proposal blocks, source records, page frontmatter, mirrored titles, wiki links, and source-record citations. It does not judge whether every claim is sufficiently supported.
-It also checks relation records and managed related-source links when present.
+It also checks relation records, managed related-source links, and BibTeX sidecars when present.
 
 ## Customize The Schema
 
@@ -186,7 +225,7 @@ To change schema behavior:
 5. Update references and validator tests when the change is machine-checkable.
 6. Log the schema change.
 
-Records are schema-closed. If you add a source record field, also update `ALLOWED_SOURCE_FIELDS` in `llm-wiki/core/scripts/validate_wiki.py`.
+Records are schema-closed. If you add a source record field or BibTeX sidecar field, also update the validator constants and tests in `llm-wiki/core/scripts/validate_wiki.py`.
 
 ## Power User Tasks
 

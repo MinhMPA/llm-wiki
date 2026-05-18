@@ -657,6 +657,10 @@ def extract_bibtex_key(entry_text: str) -> str:
     return match.group(1).strip()
 
 
+def extract_bibtex_keys(entry_text: str) -> list[str]:
+    return [match.strip() for match in re.findall(r"@\w+\{([^,\s]+)\s*,", entry_text)]
+
+
 def providers_follow_order(providers: list[str]) -> bool:
     positions = [PROVIDER_ORDER.index(provider) for provider in providers if provider in PROVIDER_ORDER]
     return positions == sorted(positions) and len(positions) == len(set(positions))
@@ -766,6 +770,45 @@ def validate_bibtex_records(
         record_id = path.stem
         if record_id not in records:
             errors.append(f"{relative_path(root, path)}: BibTeX file has no sidecar record")
+
+    validate_references_bib(root, records, source_records, errors)
+
+
+def validate_references_bib(
+    root: Path,
+    records: dict[str, BibtexRecord],
+    source_records: dict[str, SourceRecord],
+    errors: list[str],
+) -> None:
+    references_path = root / "wiki_records" / "bibtex" / "references.bib"
+    if not references_path.is_file():
+        return
+
+    location = relative_path(root, references_path)
+    text = read_text(references_path, errors, location)
+    keys = extract_bibtex_keys(text)
+    seen: set[str] = set()
+    for key in keys:
+        if key in seen:
+            errors.append(f"{location}: references.bib contains duplicate BibTeX key: {key}")
+        seen.add(key)
+
+    active_keys: set[str] = set()
+    for record_id, record in records.items():
+        source = source_records.get(record_id)
+        if source is None:
+            continue
+        if scalar_value(source.data, "status") != "active":
+            continue
+        if scalar_value(record.data, "status") != "active":
+            continue
+        bibtex_key = scalar_value(record.data, "bibtex_key")
+        if bibtex_key:
+            active_keys.add(bibtex_key)
+
+    for key in keys:
+        if key not in active_keys:
+            errors.append(f"{location}: references.bib contains non-active BibTeX key: {key}")
 
 
 def validate_source_storage(root: Path, data: dict[str, Any], location: str, errors: list[str]) -> None:

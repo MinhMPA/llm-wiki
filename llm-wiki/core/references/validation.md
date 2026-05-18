@@ -15,7 +15,7 @@ V1 validation checks:
 - BibTeX sidecar contracts under `wiki_records/bibtex/`
 - closed BibTeX sidecar fields
 - active BibTeX sidecars point to matching per-source `.bib` files
-- generated `wiki_records/bibtex/references.bib` is treated as non-canonical export output
+- generated `wiki_records/bibtex/references.bib`, when present, has no duplicate keys and contains only active bibliography keys
 - managed `Related sources` consistency between relation records and source summary pages
 - archived relation records are not rendered
 - duplicate and superseded lifecycle fields have graph-visible mirror relations after source pages are processed

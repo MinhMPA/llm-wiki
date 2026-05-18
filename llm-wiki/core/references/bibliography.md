@@ -27,7 +27,7 @@ fetched_date: 2026-05-18
 source_bib_path: wiki_records/bibtex/SRC-0001.bib
 ```
 
-Provider priority is `inspire`, then `ads`. ADS is optional and uses `ADS_API_TOKEN` when configured. Missing ADS credentials mean ADS was not attempted and should not appear in `providers_tried`.
+Provider priority is `inspire`, then `ads`. ADS is optional and uses `ADS_API_TOKEN` when configured. ADS lookup searches for a bibcode, then exports BibTeX for that bibcode. Missing ADS credentials mean ADS was not attempted and should not appear in `providers_tried`.
 
 ## Bibliography Workflow
 

@@ -539,6 +539,126 @@ class TestValidateWiki(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("BibTeX file has no sidecar record", result.stderr)
 
+    def test_references_bib_rejects_duplicate_keys(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki)
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Example:2018,
+                  title={Example}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: Example:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+            write_bibtex_entry(
+                wiki,
+                "references.bib",
+                """
+                @article{Example:2018,
+                  title={A}
+                }
+                @article{Example:2018,
+                  title={B}
+                }
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("references.bib contains duplicate BibTeX key", result.stderr)
+
+    def test_references_bib_rejects_nonactive_entries(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_bibtex_source(wiki, record_id="SRC-0001", status="active")
+            write_bibtex_source(wiki, record_id="SRC-0002", status="archived")
+            write_bibtex_entry(
+                wiki,
+                "SRC-0001.bib",
+                """
+                @article{Active:2018,
+                  title={Active}
+                }
+                """,
+            )
+            write_bibtex_entry(
+                wiki,
+                "SRC-0002.bib",
+                """
+                @article{Archived:2018,
+                  title={Archived}
+                }
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: Active:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0001.bib
+                """,
+            )
+            write_bibtex_sidecar(
+                wiki,
+                "SRC-0002.yaml",
+                """
+                record_id: SRC-0002
+                record_type: bibtex
+                status: active
+                provider: manual
+                provider_priority:
+                providers_tried: []
+                lookup_id:
+                bibtex_key: Archived:2018
+                fetched_date: 2026-05-18
+                source_bib_path: wiki_records/bibtex/SRC-0002.bib
+                """,
+            )
+            write_bibtex_entry(
+                wiki,
+                "references.bib",
+                """
+                @article{Active:2018,
+                  title={Active}
+                }
+                @article{Archived:2018,
+                  title={Archived}
+                }
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("references.bib contains non-active BibTeX key: Archived:2018", result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:

@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 FETCH_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "fetch_bibtex.py"
 INIT_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "init_llm_wiki.py"
+VALIDATOR = ROOT / "llm-wiki" / "core" / "scripts" / "validate_wiki.py"
 
 
 def load_fetch_module():
@@ -69,6 +71,14 @@ class PreparedWiki:
 
 def prepared_wiki_with_active_arxiv_source(bibtex_key=""):
     return PreparedWiki(bibtex_key=bibtex_key)
+
+
+def prepared_wiki_with_arxiv_and_doi_source():
+    wiki_context = PreparedWiki()
+    record = wiki_context.path / "wiki_records" / "sources" / "SRC-0001.yaml"
+    text = record.read_text(encoding="utf-8")
+    record.write_text(text.replace("doi:\n", "doi: 10.1234/example\n"), encoding="utf-8")
+    return wiki_context
 
 
 def prepared_wiki_with_unresolved_sidecar():
@@ -128,6 +138,20 @@ def run_fetch(wiki, *args):
     return call_main(module, [str(wiki), *args])
 
 
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        return self.payload.encode("utf-8")
+
+
 class TestFetchBibtex(unittest.TestCase):
     def test_single_source_dry_run_reports_inspire_match(self):
         with prepared_wiki_with_active_arxiv_source() as wiki:
@@ -166,6 +190,28 @@ class TestFetchBibtex(unittest.TestCase):
             self.assertIn("provider: ads", sidecar)
             self.assertIn("  - inspire\n  - ads", sidecar)
 
+    def test_ads_provider_searches_bibcode_then_exports_bibtex(self):
+        module = load_fetch_module()
+        calls = []
+
+        def fake_urlopen(request, timeout):
+            calls.append(request)
+            url = request.full_url
+            if "/v1/search/query" in url:
+                return FakeResponse(json.dumps({"response": {"docs": [{"bibcode": "2019JCAP...01..042S"}]}}))
+            if "/v1/export/bibtex" in url:
+                self.assertEqual(json.loads(request.data.decode("utf-8")), {"bibcode": ["2019JCAP...01..042S"]})
+                return FakeResponse(json.dumps({"export": "@article{AdsKey,\n  title={Example}\n}\n"}))
+            raise AssertionError(url)
+
+        with mock.patch.object(module.urllib.request, "urlopen", side_effect=fake_urlopen):
+            result = module.fetch_from_ads("arxiv:1808.02002", "token")
+
+        self.assertEqual(result, "@article{AdsKey,\n  title={Example}\n}\n")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("/v1/search/query", calls[0].full_url)
+        self.assertIn("/v1/export/bibtex", calls[1].full_url)
+
     def test_missing_ads_token_skips_ads_and_reports_unresolved(self):
         with prepared_wiki_with_active_arxiv_source() as wiki:
             env = os.environ.copy()
@@ -176,6 +222,28 @@ class TestFetchBibtex(unittest.TestCase):
             self.assertIn("status: unresolved", sidecar)
             self.assertIn("providers_tried:\n  - inspire", sidecar)
             self.assertNotIn("  - ads", sidecar)
+
+    def test_multi_identifier_retry_writes_validator_clean_provider_list(self):
+        with prepared_wiki_with_arxiv_and_doi_source() as wiki:
+            module = load_fetch_module()
+            with mock.patch.dict(os.environ, {}, clear=True):
+                with mock.patch.object(
+                    module,
+                    "fetch_from_inspire",
+                    side_effect=[None, "@article{DoiKey,\n  title={Example}\n}\n"],
+                ):
+                    result = call_main(module, [str(wiki), "SRC-0001", "--apply"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            sidecar = (wiki / "wiki_records" / "bibtex" / "SRC-0001.yaml").read_text(encoding="utf-8")
+            self.assertEqual(sidecar.count("  - inspire"), 1)
+
+            validate = subprocess.run(
+                [sys.executable, str(VALIDATOR), str(wiki)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(validate.returncode, 0, validate.stderr)
 
     def test_missing_mode_skips_existing_sidecars_without_retry(self):
         with prepared_wiki_with_unresolved_sidecar() as wiki:

@@ -43,6 +43,23 @@ To add a source record field:
 
 Because records are schema-closed, adding only documentation is not enough. The validator must also know the field.
 
+## Extend Bibliography Support
+
+Changing bibliography behavior requires schema, docs, validation, scripts, and tests to move together.
+
+Use the schema proposal queue before changing:
+
+- source bibliography fields such as `arxiv_id`, `doi`, or `bibtex_key`;
+- BibTeX sidecar fields;
+- provider order or provider vocabulary;
+- fetch eligibility;
+- unresolved/manual sidecar rules;
+- export ordering or filtering.
+
+After approval, update `WIKI_SCHEMA.md`, `llm-wiki/core/references/record-contracts.md`, `llm-wiki/core/references/bibliography.md`, `validate_wiki.py`, `fetch_bibtex.py`, `export_bibtex.py`, and focused tests in the same implementation.
+
+Do not add Google Scholar scraping or title/author search as a small patch. Those would change the reliability contract and need a separate proposal.
+
 ## Add A Page Type
 
 To add a page type:

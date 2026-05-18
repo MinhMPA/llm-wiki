@@ -208,6 +208,58 @@ _Avoid_: mixed relation list, prose grouping
 A deterministic helper script that rewrites only managed `Related sources` sections from Source relation records.
 _Avoid_: LLM-formatted relation block, whole-page formatter
 
+**Source BibTeX entry**:
+A canonical per-source BibTeX file that records the citation entry for one Source record.
+_Avoid_: copied citation snippet, page-only bibliography
+
+**Source external identifier**:
+A stable identifier for a Source record in an external scholarly index, such as an arXiv ID or DOI.
+_Avoid_: title-only lookup key, raw filename as identity
+
+**BibTeX key**:
+The citation key used inside a BibTeX entry and LaTeX `\cite{...}` commands.
+_Avoid_: source record ID, filename stem
+
+**ArXiv ID**:
+The canonical arXiv identifier for a paper source, used as the preferred lookup key for BibTeX retrieval.
+_Avoid_: version suffix as identity, title search
+
+**ArXiv base ID**:
+The versionless arXiv identifier used for BibTeX lookup and provider matching, such as `1808.02002`.
+_Avoid_: versioned arXiv ID, source display label
+
+**DOI**:
+The digital object identifier for a paper source, used as an optional BibTeX lookup key.
+_Avoid_: title-only lookup key, journal page URL
+
+**BibTeX export**:
+A generated aggregate `.bib` file assembled from Source BibTeX entries for use by LaTeX projects.
+_Avoid_: canonical bibliography database, hand-copied references
+
+**Bibliography workflow**:
+The ingest/lint extension workflow that fetches, validates, and exports Source BibTeX entries.
+_Avoid_: ad hoc citation editing, wiki-page citation replacement
+
+**Bibliography reference doc**:
+A companion reference document for bibliography CLI behavior, provider order, and sidecar examples.
+_Avoid_: schema replacement, duplicate rule source
+
+**BibTeX provider chain**:
+The ordered set of BibTeX providers attempted for a source, such as INSPIRE-HEP followed by NASA/ADS.
+_Avoid_: implicit fallback order, provider-less citation lookup
+
+**BibTeX providers tried**:
+The ordered list of BibTeX providers attempted for one source retrieval.
+_Avoid_: hidden fallback log, unordered provider set
+
+**ADS API token**:
+The optional runtime credential for NASA/ADS BibTeX retrieval, set outside base installation.
+_Avoid_: install-time dependency, wiki-stored secret
+
+**Minimal-footprint script behavior**:
+A script policy that changes only the files and fields it is explicitly responsible for, with no inference or surprise repair.
+_Avoid_: opportunistic cleanup, broad auto-fix, silent overreach
+
 **Platform pointer file**:
 A tiny platform-specific instruction file such as `AGENTS.md` or `CLAUDE.md` that tells the host agent to read the Wiki schema.
 _Avoid_: duplicated schema, adapter-owned rules
@@ -302,6 +354,19 @@ _Avoid_: duplicated schema, adapter-owned rules
 - Ordinary Obsidian links outside the managed `Related sources` section are not **Managed related source links**
 - **Managed related source links** are organized under **Relation type groups**
 - A **Relation section renderer** may mechanically update **Managed related source links** without changing source-summary prose
+- A **Source BibTeX entry** belongs to one **Source record**
+- A **Source record** may include **Source external identifiers** for citation lookup
+- An **ArXiv ID** may be used to look up a **Source BibTeX entry**
+- An **ArXiv base ID** is the normalized lookup form used by BibTeX fetchers
+- A **DOI** may be used to look up a **Source BibTeX entry**
+- A **Source record** may include a **BibTeX key** for citation stability
+- A **BibTeX export** is generated from **Source BibTeX entries** and is not canonical
+- A **Bibliography workflow** belongs under the existing **Ingest Workflow** or **Lint Workflow** sections
+- A **Bibliography reference doc** may accompany the governing schema
+- A **BibTeX provider chain** may be recorded in BibTeX sidecars and fetch reports
+- **BibTeX providers tried** preserves the attempted provider order
+- An **ADS API token** is optional runtime configuration, not base installation
+- **Minimal-footprint script behavior** constrains bibliography scripts to explicit, bounded writes
 - **Wiki records** remain authoritative when **Mirrored page properties** disagree
 - V1 **Competitive edges** are portability, model choice, version history, maintenance automation, custom schemas, Obsidian-native organization, local/private operation, longitudinal records, and auditability
 - **Competitive edges** are **Guiding principles**, not absolute constraints

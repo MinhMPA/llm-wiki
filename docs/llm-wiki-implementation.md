@@ -14,6 +14,9 @@ llm-wiki/
     assets/starter-wiki/
     references/
     scripts/
+      bibtex_support.py
+      export_bibtex.py
+      fetch_bibtex.py
       init_llm_wiki.py
       render_relations.py
       validate_wiki.py
@@ -33,6 +36,7 @@ AGENTS.md
 CLAUDE.md
 raw/
 wiki_records/
+  bibtex/
   relations/
   sources/
 wiki_pages/
@@ -86,6 +90,33 @@ Behavior:
 - refuses malformed managed sections that contain unmanaged prose.
 
 The renderer uses only the Python standard library.
+
+## Bibliography Scripts
+
+Fetch command:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT SRC-0001 [--apply]
+python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT --missing [--retry-unresolved] [--apply]
+python3 llm-wiki/core/scripts/fetch_bibtex.py WIKI_ROOT --all [--apply]
+```
+
+Export command:
+
+```bash
+python3 llm-wiki/core/scripts/export_bibtex.py WIKI_ROOT [--output /path/to/references.bib] [--apply]
+```
+
+Behavior:
+
+- `fetch_bibtex.py` is networked maintenance and dry-runs by default.
+- `fetch_bibtex.py --apply` writes `wiki_records/bibtex/SRC-0001.bib` and `wiki_records/bibtex/SRC-0001.yaml`.
+- INSPIRE is tried first.
+- ADS is tried second only when `ADS_API_TOKEN` is set. ADS lookup searches for one bibcode, then posts that bibcode to the ADS BibTeX export endpoint.
+- Google Scholar is not part of v1.
+- `export_bibtex.py` is offline and dry-runs by default.
+- `export_bibtex.py --apply` writes generated `references.bib`.
+- `references.bib` is non-canonical and contains active entries only. When present, validation rejects duplicate keys and keys that do not belong to active bibliography sidecars for active sources.
 
 ## Validator
 
@@ -144,6 +175,9 @@ Allowed fields are closed to the v1 source record field set:
 - `processed_date`
 - `published_date`
 - `content_fingerprint`
+- `arxiv_id`
+- `doi`
+- `bibtex_key`
 
 Unknown fields fail validation. This keeps canonical records machine-readable. Human navigation fields such as `tags` belong in page frontmatter, not in record YAML.
 
@@ -156,6 +190,14 @@ Required fields are `record_id`, `record_type`, `status`, `source_record_id`, `t
 Allowed fields are closed to `record_id`, `record_type`, `status`, `source_record_id`, `target_record_id`, `relation_type`, `direction`, `evidence`, `created_date`, `reviewed_date`, and `confidence`.
 
 Unknown fields fail validation. `notes` and `relation_id` are not valid relation record fields in v1.
+
+## BibTeX Sidecar Contract
+
+BibTeX sidecars live in `wiki_records/bibtex/*.yaml`. The `record_id` must match the source ID and filename stem.
+
+Required fields are `record_id`, `record_type`, `status`, `provider`, `provider_priority`, `providers_tried`, `lookup_id`, `bibtex_key`, `fetched_date`, and `source_bib_path`.
+
+For active records, `source_bib_path` points to the matching per-source `.bib` file. For unresolved records, `provider`, `provider_priority`, `bibtex_key`, and `source_bib_path` stay blank. `providers_tried` is always a list and follows the fixed provider order.
 
 ## Page Contract
 
@@ -200,6 +242,10 @@ The validator checks that relation records use the closed field set, valid contr
 
 For processed source summaries, it also checks that active outgoing renderable relations appear in `## Related sources`, managed related-source links map to active relation records, archived relations are not rendered, and duplicate or superseded lifecycle fields have matching active `duplicates` or `supersedes` relation records.
 
+## Bibliography Validation
+
+The validator checks that BibTeX sidecars use the closed field set, reference existing source records, use valid provider values, preserve `providers_tried` order, point active records to existing `.bib` files, and keep sidecar keys aligned with entry keys and source-record overrides.
+
 ## Test Suite
 
 Run:
@@ -208,4 +254,4 @@ Run:
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover starter layout, schema contracts, initializer behavior, validator behavior, relation rendering, and end-to-end init-record-page-validate workflows.
+The tests cover starter layout, schema contracts, initializer behavior, validator behavior, relation rendering, bibliography fetching/exporting, and end-to-end init-record-page-validate workflows.

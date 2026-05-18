@@ -57,6 +57,9 @@ added_date: 2026-05-11
 processed_date: 2026-05-11
 published_date:
 content_fingerprint:
+arxiv_id:
+doi:
+bibtex_key:
 ```
 
 For local sources, `raw_path` must point under `raw/` and the file must exist. For external sources, `source_url` is required.
@@ -120,6 +123,47 @@ python3 llm-wiki/core/scripts/render_relations.py path/to/wiki --apply
 ```
 
 The first command previews source pages that would change. The second rewrites only managed `## Related sources` sections. Then run validation.
+
+## Manage BibTeX
+
+For active paper sources, add exact identifiers to the source record when available:
+
+```yaml
+source_type: paper
+arxiv_id: 1808.02002
+doi:
+bibtex_key:
+```
+
+Fetch BibTeX after ingest when you need citation artifacts:
+
+```bash
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001
+python3 llm-wiki/core/scripts/fetch_bibtex.py path/to/wiki SRC-0001 --apply
+```
+
+The first command previews. The second writes `wiki_records/bibtex/SRC-0001.bib` and `wiki_records/bibtex/SRC-0001.yaml`.
+
+The fetcher tries INSPIRE first. To enable the ADS fallback, set an ADS token after core installation:
+
+```bash
+export ADS_API_TOKEN="..."
+```
+
+Then retry the fetch. The token is runtime configuration and should not be written into wiki files.
+
+Export a draft-ready bibliography:
+
+```bash
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --apply
+```
+
+The generated file is `wiki_records/bibtex/references.bib`. It includes active entries only and can also be written to a LaTeX draft with:
+
+```bash
+python3 llm-wiki/core/scripts/export_bibtex.py path/to/wiki --output /path/to/draft/references.bib --apply
+```
 
 ## Filing Query Results
 

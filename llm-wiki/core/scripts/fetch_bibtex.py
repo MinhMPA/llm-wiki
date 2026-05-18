@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import urllib.parse
@@ -50,9 +51,13 @@ def inspire_bibtex_url(lookup_id: str) -> str:
     return f"https://inspirehep.net/api/literature?{query}"
 
 
-def ads_bibtex_url(lookup_id: str) -> str:
-    query = urllib.parse.urlencode({"q": lookup_id, "fl": "bibcode"})
+def ads_search_url(lookup_id: str) -> str:
+    query = urllib.parse.urlencode({"q": lookup_id, "fl": "bibcode", "rows": "1"})
     return f"https://api.adsabs.harvard.edu/v1/search/query?{query}"
+
+
+def ads_export_url() -> str:
+    return "https://api.adsabs.harvard.edu/v1/export/bibtex"
 
 
 def fetch_from_inspire(lookup_id: str) -> str | None:
@@ -62,10 +67,26 @@ def fetch_from_inspire(lookup_id: str) -> str | None:
 
 
 def fetch_from_ads(lookup_id: str, token: str) -> str | None:
-    request = urllib.request.Request(ads_bibtex_url(lookup_id), headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        text = response.read().decode("utf-8")
-    return normalize_bibtex_entry(text) if text.strip() else None
+    headers = {"Authorization": f"Bearer {token}"}
+    search_request = urllib.request.Request(ads_search_url(lookup_id), headers=headers)
+    with urllib.request.urlopen(search_request, timeout=30) as response:
+        search_text = response.read().decode("utf-8")
+    search_data = json.loads(search_text)
+    docs = search_data.get("response", {}).get("docs", [])
+    if not docs:
+        return None
+    bibcode = docs[0].get("bibcode", "")
+    if not bibcode:
+        return None
+
+    payload = json.dumps({"bibcode": [bibcode]}).encode("utf-8")
+    export_headers = {**headers, "Content-Type": "application/json"}
+    export_request = urllib.request.Request(ads_export_url(), data=payload, headers=export_headers)
+    with urllib.request.urlopen(export_request, timeout=30) as response:
+        export_text = response.read().decode("utf-8")
+    export_data = json.loads(export_text)
+    bibtex_entry = str(export_data.get("export") or "")
+    return normalize_bibtex_entry(bibtex_entry) if bibtex_entry.strip() else None
 
 
 def selected_record_ids(root: Path, records: dict[str, dict[str, Any]], args: argparse.Namespace) -> list[str]:
@@ -117,6 +138,11 @@ def sidecar_text(
     return "\n".join(lines)
 
 
+def append_provider_once(providers_tried: list[str], provider: str) -> None:
+    if provider not in providers_tried:
+        providers_tried.append(provider)
+
+
 def fetch_for_source(root: Path, record_id: str, data: dict[str, Any], apply: bool) -> tuple[int, str, str]:
     bibtex_dir = root / "wiki_records" / "bibtex"
     bib_path = bibtex_dir / f"{record_id}.bib"
@@ -130,12 +156,12 @@ def fetch_for_source(root: Path, record_id: str, data: dict[str, Any], apply: bo
     providers_tried: list[str] = []
     ads_token = os.environ.get("ADS_API_TOKEN", "")
     for lookup_id in candidates:
-        providers_tried.append("inspire")
+        append_provider_once(providers_tried, "inspire")
         bibtex_entry = fetch_from_inspire(lookup_id)
         if bibtex_entry:
             return write_or_report(root, record_id, data, "inspire", "1", providers_tried, lookup_id, bibtex_entry, apply)
         if ads_token:
-            providers_tried.append("ads")
+            append_provider_once(providers_tried, "ads")
             bibtex_entry = fetch_from_ads(lookup_id, ads_token)
             if bibtex_entry:
                 return write_or_report(root, record_id, data, "ads", "2", providers_tried, lookup_id, bibtex_entry, apply)
