@@ -224,6 +224,32 @@ class TestValidateWiki(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("unsupported source record field: tags", result.stderr)
 
+    def test_source_record_accepts_bibliography_identifier_fields(self):
+        temp_dir, wiki = initialized_wiki()
+        with temp_dir:
+            write_source_record(
+                wiki,
+                "SRC-0001.yaml",
+                """
+                record_id: SRC-0001
+                record_type: source
+                status: active
+                source_storage: external
+                source_url: https://arxiv.org/abs/1808.02002v2
+                source_type: paper
+                title: Example Paper
+                authors: []
+                added_date: 2026-05-18
+                arxiv_id: 1808.02002v2
+                doi: 10.1234/example
+                bibtex_key: Example:2018
+                """,
+            )
+
+            result = run_validator(wiki)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_page_mirror_must_match_record(self):
         temp_dir, wiki = initialized_wiki()
         with temp_dir:
