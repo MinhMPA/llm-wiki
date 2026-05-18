@@ -45,7 +45,7 @@ def active_sidecar(record_id, bibtex_key):
             "status: active",
             "provider: manual",
             "provider_priority:",
-            "providers_tried:",
+            "providers_tried: []",
             "lookup_id:",
             f"bibtex_key: {bibtex_key}",
             "fetched_date: 2026-05-18",
@@ -122,3 +122,36 @@ class TestExportBibtex(unittest.TestCase):
             self.assertIn("would write", result.stdout)
             self.assertIn("2 entries", result.stdout)
 
+    def test_apply_writes_references_bib(self):
+        with prepared_wiki_with_two_active_bibtex_entries() as wiki:
+            result = run_export(wiki, "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            references = (wiki / "wiki_records" / "bibtex" / "references.bib").read_text(encoding="utf-8")
+            self.assertLess(references.index("@article{AKey,"), references.index("@article{BKey,"))
+
+    def test_export_rejects_duplicate_keys(self):
+        with prepared_wiki_with_two_active_bibtex_entries(key_1="SameKey", key_2="SameKey") as wiki:
+            result = run_export(wiki)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("duplicate BibTeX key", result.stderr)
+
+    def test_export_skips_unresolved_sidecars(self):
+        with prepared_wiki_with_unresolved_bibtex_sidecar() as wiki:
+            result = run_export(wiki)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("0 entries", result.stdout)
+
+    def test_export_skips_nonactive_sources(self):
+        with prepared_wiki_with_bibtex_for_archived_source() as wiki:
+            result = run_export(wiki)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("0 entries", result.stdout)
+
+    def test_external_output_path_writes_only_requested_file(self):
+        with prepared_wiki_with_two_active_bibtex_entries() as wiki:
+            external = wiki.parent / "draft" / "references.bib"
+            external.parent.mkdir()
+            result = run_export(wiki, "--output", str(external), "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(external.exists())
+            self.assertFalse((wiki / "wiki_records" / "bibtex" / "references.bib").exists())

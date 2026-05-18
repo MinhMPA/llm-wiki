@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INIT_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "init_llm_wiki.py"
 VALIDATE_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "validate_wiki.py"
 RENDER_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "render_relations.py"
+EXPORT_SCRIPT = ROOT / "llm-wiki" / "core" / "scripts" / "export_bibtex.py"
 
 
 class TestEndToEnd(unittest.TestCase):
@@ -190,6 +191,82 @@ class TestEndToEnd(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+
+            validate_result = subprocess.run(
+                [sys.executable, str(VALIDATE_SCRIPT), str(target)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(validate_result.returncode, 0, validate_result.stderr)
+
+    def test_init_add_manual_bibtex_export_and_validate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "wiki"
+            init_result = subprocess.run(
+                [sys.executable, str(INIT_SCRIPT), str(target)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(init_result.returncode, 0, init_result.stderr)
+
+            record = target / "wiki_records" / "sources" / "SRC-0001.yaml"
+            record.write_text(
+                "\n".join(
+                    [
+                        "record_id: SRC-0001",
+                        "record_type: source",
+                        "status: active",
+                        "duplicate_of:",
+                        "superseded_by:",
+                        "source_storage: external",
+                        "source_url: https://arxiv.org/abs/1808.02002",
+                        "page_path:",
+                        "source_type: paper",
+                        "source_format: pdf",
+                        "title: Example Paper",
+                        "authors: []",
+                        "added_date: 2026-05-18",
+                        "processed_date:",
+                        "published_date:",
+                        "content_fingerprint:",
+                        "arxiv_id: 1808.02002",
+                        "doi:",
+                        "bibtex_key:",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (target / "wiki_records" / "bibtex" / "SRC-0001.bib").write_text(
+                "@article{Example:2018,\n  title={Example}\n}\n",
+                encoding="utf-8",
+            )
+            (target / "wiki_records" / "bibtex" / "SRC-0001.yaml").write_text(
+                "\n".join(
+                    [
+                        "record_id: SRC-0001",
+                        "record_type: bibtex",
+                        "status: active",
+                        "provider: manual",
+                        "provider_priority:",
+                        "providers_tried: []",
+                        "lookup_id:",
+                        "bibtex_key: Example:2018",
+                        "fetched_date: 2026-05-18",
+                        "source_bib_path: wiki_records/bibtex/SRC-0001.bib",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            export_result = subprocess.run(
+                [sys.executable, str(EXPORT_SCRIPT), str(target), "--apply"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(export_result.returncode, 0, export_result.stderr)
 
             validate_result = subprocess.run(
                 [sys.executable, str(VALIDATE_SCRIPT), str(target)],
